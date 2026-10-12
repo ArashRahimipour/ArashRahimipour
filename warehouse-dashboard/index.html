@@ -5,150 +5,174 @@
 .wh h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
 .wh h3 { font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); }
 .wh p { margin: 0; }
-.wh-muted { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.wh-muted { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); max-width: 75ch; }
 
 .wh-head { display: grid; gap: var(--cds-gap-sm); }
-.wh-title-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--cds-gap-md); }
-.wh-day-wrap { display: inline-flex; align-items: center; gap: var(--cds-gap-sm); color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
-.wh-day { font: inherit; font-size: var(--cds-font-size-body); color: var(--color-fg); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-xs) var(--cds-pad-sm); }
-.wh-take { font-size: var(--cds-font-size-body); max-width: 70ch; }
-.wh-sample { display: inline-flex; width: fit-content; padding: 2px var(--cds-pad-sm); border-radius: 999px; border: 1px dashed var(--color-border-line); color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.wh-take { font-size: var(--cds-font-size-body); max-width: 75ch; }
+.wh-nav { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); }
+.wh-nav a, .wh-chip { font: inherit; font-size: var(--cds-font-size-caption); color: var(--color-fg); text-decoration: none; background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: 999px; padding: 3px var(--cds-pad-sm); cursor: pointer; }
+.wh-nav a:hover, .wh-chip:hover { border-color: var(--color-fg-muted); }
+.wh-chip[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+.wh-chip:focus-visible, .wh-nav a:focus-visible, .wh-th-btn:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+.wh-sample { display: inline-flex; width: fit-content; padding: 2px var(--cds-pad-sm); border-radius: 999px; border: 1px dashed var(--color-border-line); color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); font-weight: 400; }
 
-.wh-tiles { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr)); }
-.wh-tile { display: grid; align-content: start; gap: var(--cds-gap-xs); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); min-height: 6.5rem; }
+.wh-section { display: grid; gap: var(--cds-gap-md); scroll-margin-top: var(--cds-pad-lg); }
+.wh-section-head { display: grid; gap: var(--cds-gap-xs); }
+.wh-section-head h2 { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cds-gap-sm); }
+.wh-sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); letter-spacing: .02em; padding-top: var(--cds-pad-sm); }
+
+.wh-tiles { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); min-height: 7rem; }
+.wh-tiles.is-small { grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); min-height: 5rem; }
+.wh-tile { display: grid; align-content: start; gap: var(--cds-gap-xs); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); min-width: 0; }
 .wh-tile-k { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.wh-tile-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--cds-gap-sm); flex-wrap: wrap; }
 .wh-tile-v { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); line-height: 1.1; }
-.wh-of { color: var(--color-fg-muted); font-size: var(--cds-font-size-heading); }
+.is-small .wh-tile-v { font-size: var(--cds-font-size-heading); }
+.wh-of { color: var(--color-fg-muted); font-size: var(--cds-font-size-body); font-family: var(--font-anthropic-sans); }
 .wh-tile-n { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.wh .wh-tile-n b, .wh .wh-take b, .wh .wh-window b { font-weight: var(--cds-font-weight-medium); color: var(--color-fg); }
 .is-ok { color: var(--color-ok); }
 .is-warn { color: var(--color-warn); }
 .is-bad { color: var(--color-bad); }
 
-.wh-section { display: grid; gap: var(--cds-gap-md); scroll-margin-top: var(--cds-pad-lg); }
-.wh-section-head { display: grid; gap: var(--cds-gap-xs); }
-.wh-cards { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); min-height: 12rem; }
-.wh-card { display: grid; align-content: start; gap: var(--cds-gap-sm); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); min-width: 0; }
-.wh-eyebrow { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); letter-spacing: .02em; }
-.wh-value-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--cds-gap-sm); flex-wrap: wrap; }
-.wh-big { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); line-height: 1.1; }
-.wh-line { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
-.wh-line b, .wh-tile-n b { font-weight: var(--cds-font-weight-medium); color: var(--color-fg); }
-.wh-spark { height: 48px; min-height: 48px; }
-.wh-spark svg { display: block; overflow: visible; }
-
-.wh-pill { display: inline-flex; align-items: center; gap: .35rem; padding: 2px var(--cds-pad-sm); border-radius: 999px; font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); white-space: nowrap; }
+.wh-pill { display: inline-flex; align-items: center; gap: .35rem; padding: 2px var(--cds-pad-sm); border-radius: 999px; font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); white-space: nowrap; font-family: var(--font-anthropic-sans); }
 .wh-pill::before { content: ""; width: .4rem; height: .4rem; border-radius: 50%; background: currentColor; }
 .wh-pill.is-ok { background: color-mix(in srgb, var(--color-ok) 14%, transparent); }
 .wh-pill.is-bad { background: color-mix(in srgb, var(--color-bad) 14%, transparent); }
 .wh-pill.is-warn { background: color-mix(in srgb, var(--color-warn) 16%, transparent); }
 .wh-pill.is-neutral { color: var(--color-fg-muted); background: color-mix(in srgb, var(--color-fg-muted) 12%, transparent); }
 
-.wh-panel { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: grid; gap: var(--cds-gap-sm); min-width: 0; }
-.wh-matrix-wrap { overflow-x: auto; }
-.wh-matrix { display: grid; gap: 3px; min-width: 40rem; min-height: 18rem; font-size: var(--cds-font-size-caption); }
-.wh-matrix .wh-mlabel { display: flex; flex-direction: column; justify-content: center; padding-right: var(--cds-pad-sm); line-height: 1.25; }
-.wh-matrix .wh-mlabel span:last-child { color: var(--color-fg-muted); }
-.wh-mgroup { grid-column: 1 / -1; padding-top: var(--cds-pad-sm); color: var(--color-fg-muted); letter-spacing: .02em; }
-.wh-mday { font: inherit; color: var(--color-fg-muted); background: none; border: 0; border-radius: var(--cds-radius); padding: var(--cds-pad-xs) 0; cursor: pointer; text-align: center; line-height: 1.2; }
-.wh-mday:hover { color: var(--color-fg); }
-.wh-mday[aria-pressed="true"] { color: var(--color-fg); font-weight: var(--cds-font-weight-medium); box-shadow: inset 0 -2px 0 var(--color-fg); border-radius: 0; }
-.wh-mday:focus-visible, .wh-cell:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 1px; }
-.wh-cell { display: flex; align-items: center; justify-content: center; min-height: 1.9rem; border-radius: 4px; color: var(--color-fg); cursor: default; }
-.wh-cell.is-hit { background: color-mix(in srgb, var(--color-ok) 22%, transparent); }
-.wh-cell.is-miss { background: color-mix(in srgb, var(--color-bad) 24%, transparent); }
-.wh-cell.is-sel { box-shadow: inset 0 0 0 2px var(--color-fg); }
-.wh-cell.is-total { background: none; color: var(--color-fg-muted); font-weight: var(--cds-font-weight-medium); }
-.wh-legend { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
-.wh-legend span { display: inline-flex; align-items: center; gap: .35rem; }
-.wh-legend i { width: .8rem; height: .8rem; border-radius: 3px; display: inline-block; }
-
+.wh-panel { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: grid; gap: var(--cds-gap-sm); align-content: start; min-width: 0; }
 .wh-two { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); }
 .wh-chart { min-height: 200px; }
 .wh-chart svg { display: block; }
+
+.wh-table-wrap { overflow: auto; }
+.wh-table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-caption); }
+.wh-table th { text-align: left; font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); white-space: nowrap; background: var(--color-panel); position: sticky; top: 0; z-index: 1; }
+.wh-table td { padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); vertical-align: middle; }
+.wh-table .num { text-align: right; }
+.wh-table th.num { text-align: right; }
+.wh-sheet { min-width: 40rem; }
+.wh-sheet td:first-child { white-space: nowrap; }
+.wh-sheet td.is-hit { background: color-mix(in srgb, var(--color-ok) 14%, transparent); }
+.wh-sheet td.is-miss { background: color-mix(in srgb, var(--color-bad) 16%, transparent); }
+.wh-sheet td.wk, .wh-sheet th.wk { font-weight: var(--cds-font-weight-medium); border-left: 1px solid var(--color-border-line); }
+.wh-sheet tr.is-kpi td:first-child { font-weight: var(--cds-font-weight-medium); }
+.wh-sheet .wh-group td { color: var(--color-fg-muted); letter-spacing: .02em; padding-top: var(--cds-pad-md); border-bottom: 0; }
+.wh-todo { display: grid; gap: var(--cds-gap-xs); padding-left: 1.1rem; margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.wh-todo b { color: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
+
+.wh-pickers-wrap { max-height: 32rem; }
+.wh-pickers { min-width: 34rem; }
+.wh-th-btn { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.wh-th-btn:hover { color: var(--color-fg); }
+.wh-rate { display: grid; grid-template-columns: 3.2rem 1fr; align-items: center; gap: var(--cds-gap-sm); min-width: 9rem; }
+.wh-rate-bar { position: relative; height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--color-fg-muted) 12%, transparent); }
+.wh-rate-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; }
+.wh-rate-bar u { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--color-fg); text-decoration: none; }
+.wh-pickers tr.is-low td { color: var(--color-fg-muted); }
+.wh-filter { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cds-gap-sm); }
+.wh-select { font: inherit; font-size: var(--cds-font-size-caption); color: var(--color-fg); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 2px var(--cds-pad-sm); }
+
 .wh-reasons { display: grid; gap: var(--cds-gap-sm); min-height: 10rem; align-content: start; }
 .wh-reason { display: grid; grid-template-columns: minmax(7rem, 11rem) 1fr 2.5rem; align-items: center; gap: var(--cds-gap-sm); font-size: var(--cds-font-size-caption); }
 .wh-reason-bar { height: 10px; border-radius: 999px; background: color-mix(in srgb, var(--color-fg-muted) 14%, transparent); overflow: hidden; }
 .wh-reason-bar i { display: block; height: 100%; border-radius: 999px; }
 .wh-reason-v { text-align: right; font-weight: var(--cds-font-weight-medium); }
-
-.wh-stds { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); min-height: 7rem; }
-.wh-std { display: grid; align-content: start; gap: var(--cds-gap-xs); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); }
-.wh-std .wh-tile-v { font-size: var(--cds-font-size-heading); font-family: var(--font-anthropic-serif); }
 .wh-window { font-size: var(--cds-font-size-body); }
-.wh-window b { font-weight: var(--cds-font-weight-medium); }
-.wh-table-wrap { overflow-x: auto; }
-.wh-table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-caption); min-width: 44rem; }
-.wh-table th { text-align: left; font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); }
-.wh-table td { padding: var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); vertical-align: top; }
-.wh-table tr.is-sel td { background: color-mix(in srgb, var(--color-fg) 6%, transparent); }
-.wh-table td:nth-child(5), .wh-table td:nth-child(6) { min-width: 14rem; }
+.wh-log { min-width: 44rem; }
+.wh-log tr.is-sel td { background: color-mix(in srgb, var(--color-fg) 6%, transparent); }
+.wh-log td { vertical-align: top; padding-block: var(--cds-pad-sm); }
+.wh-log td:nth-child(5), .wh-log td:nth-child(6) { min-width: 14rem; }
 
 .wh-fail { display: flex; align-items: center; justify-content: center; gap: .5rem; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); min-height: inherit; }
 .wh-fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
 .wh [data-dash-source-state=empty] { color: transparent; }
 .wh [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
-
 .wh-tip { position: absolute; z-index: 5; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; }
 .wh-tip-k { color: var(--cds-text-secondary); }
-@media (prefers-reduced-motion: no-preference) {
-  .wh-in { animation: wh-rise var(--cds-dur-slow) var(--cds-ease-out) both; }
-  @keyframes wh-rise { from { opacity: .4; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-}
 </style>
 
 <div class="wh">
   <div class="wh-tip" id="wh-tip" hidden></div>
 
   <header class="wh-head" id="top">
-    <div class="wh-title-row">
-      <h1>Warehouse daily ops</h1>
-      <label class="wh-day-wrap" for="wh-day">Shift day
-        <select id="wh-day" class="wh-day" data-source="ops"></select>
-      </label>
-    </div>
+    <h1>Warehouse daily ops</h1>
     <p class="wh-take dash-skeleton" id="wh-take">—</p>
-    <span class="wh-sample">Sample figures. Replace with your daily sheet.</span>
+    <nav class="wh-nav" aria-label="Sections">
+      <a href="#receiving">Receiving · VIC</a><a href="#picking">Picking · all warehouses</a><a href="#returns">Returns</a><a href="#safety">Safety</a>
+    </nav>
   </header>
 
-  <section class="wh-tiles" id="summary" aria-label="Day summary">
-    <div class="wh-tile"><div class="wh-tile-k">All KPIs hit</div><div class="wh-tile-v"><span id="s-all-hit" class="dash-skeleton">—</span><span class="wh-of"> / <span id="s-all-tot">—</span></span></div><div class="wh-tile-n" id="s-all-note"></div></div>
-    <div class="wh-tile"><div class="wh-tile-k">Receiving KPIs hit</div><div class="wh-tile-v"><span id="s-rec-hit" class="dash-skeleton">—</span><span class="wh-of"> / <span id="s-rec-tot">—</span></span></div><div class="wh-tile-n" id="s-rec-note"></div></div>
-    <div class="wh-tile"><div class="wh-tile-k">Dispatch KPIs hit</div><div class="wh-tile-v"><span id="s-dis-hit" class="dash-skeleton">—</span><span class="wh-of"> / <span id="s-dis-tot">—</span></span></div><div class="wh-tile-n" id="s-dis-note"></div></div>
-    <div class="wh-tile"><div class="wh-tile-k">Safety standards met</div><div class="wh-tile-v"><span id="s-saf-met" class="dash-skeleton">—</span><span class="wh-of"> / <span id="s-saf-tot">—</span></span></div><div class="wh-tile-n" id="s-saf-note"></div></div>
-    <div class="wh-tile"><div class="wh-tile-k">Boxes returned</div><div class="wh-tile-v"><span id="s-ret" class="dash-skeleton">—</span></div><div class="wh-tile-n" id="s-ret-note"></div></div>
-  </section>
-
+  <!-- ================= RECEIVING ================= -->
   <section class="wh-section" id="receiving">
     <div class="wh-section-head">
-      <h2>Receiving</h2>
-      <p class="wh-muted">Container to location, in order: unload, palletize, label, QC, feed, put away. Rates are team output per worked hour.</p>
+      <h2>Receiving · VIC warehouse</h2>
+      <p class="wh-muted">From the VIC weekly reporting sheet, Monday to Friday (no Saturday or Sunday work). The sheet doesn't show the week's date.</p>
     </div>
-    <div class="wh-cards" id="rec-cards" data-source="kpi_rates ops"></div>
+    <div class="wh-tiles" id="rec-kpis"></div>
+    <div class="wh-sub">Volume this week</div>
+    <div class="wh-tiles is-small" id="rec-volume"></div>
+    <div class="wh-two">
+      <div class="wh-panel" id="rec-hours-card">
+        <h3>Unloading man-hours per container</h3>
+        <p class="wh-muted">Total unloading hours ÷ containers unloaded. Target is 14 hours or less.</p>
+        <div class="wh-chart" id="rec-hours-chart" data-source="vic_rec_days"></div>
+      </div>
+      <div class="wh-panel" id="rec-missing">
+        <h3>Not on the sheet yet</h3>
+        <p class="wh-muted">Add these rows to the weekly sheet with the hours spent on each, and they'll get a per-hour KPI here like unloading has.</p>
+        <ul class="wh-todo">
+          <li><b>Pallets fed</b> by the feeder, and feeder hours</li>
+          <li><b>Pallets put away</b>, and putaway hours</li>
+          <li><b>Pallet labels printed</b> (pallet label generation)</li>
+          <li><b>Pallets QC'd</b>, and QC hours</li>
+          <li><b>Pallets built</b> (palletizing), and hours</li>
+        </ul>
+      </div>
+    </div>
+    <div class="wh-panel" id="rec-sheet-card">
+      <h3>Daily sheet</h3>
+      <p class="wh-muted">Same rows as your weekly report. Green met target, red missed.</p>
+      <div class="wh-table-wrap"><table class="wh-table wh-sheet" id="rec-sheet"><thead></thead><tbody></tbody></table></div>
+    </div>
   </section>
 
-  <section class="wh-section" id="dispatch">
+  <!-- ================= PICKING ================= -->
+  <section class="wh-section" id="picking">
     <div class="wh-section-head">
-      <h2>Dispatch</h2>
-      <p class="wh-muted">Outbound boxes and volume per worked hour, and pallets replenished to pick faces by the two replenishers.</p>
+      <h2>Picking · September 2026</h2>
+      <p class="wh-muted">From the Task User Report, 1–30 Sep 2026. Pick rate is boxes per picking hour; a warehouse's rate is its total boxes ÷ total picking hours. Target 25 boxes/hr. Pickers with under 50 boxes aren't scored. MMS and Abadan accounts are left out, and pickers are shown by ID.</p>
     </div>
-    <div class="wh-cards" id="dis-cards" data-source="kpi_rates ops"></div>
+    <div class="wh-tiles" id="pick-wh"></div>
+    <div class="wh-panel" id="pick-table-card">
+      <div class="wh-filter">
+        <h3 style="margin-right:auto">Pickers</h3>
+        <div class="wh-filter" id="pick-filter" role="group" aria-label="Warehouse"></div>
+      </div>
+      <div class="wh-table-wrap wh-pickers-wrap">
+        <table class="wh-table wh-pickers" id="pick-table" data-source="pick_people" data-row-key="picker">
+          <thead><tr>
+            <th data-field="picker"><button class="wh-th-btn" type="button" data-sort="picker">Picker</button></th>
+            <th data-field="warehouse"><button class="wh-th-btn" type="button" data-sort="warehouse">Warehouse</button></th>
+            <th class="num" data-field="boxes"><button class="wh-th-btn" type="button" data-sort="boxes">Boxes</button></th>
+            <th class="num" data-field="bins"><button class="wh-th-btn" type="button" data-sort="bins">Bins</button></th>
+            <th class="num" data-field="hours"><button class="wh-th-btn" type="button" data-sort="hours">Hours</button></th>
+            <th data-field="pickrate"><button class="wh-th-btn" type="button" data-sort="pickrate">Boxes/hr</button></th>
+            <th data-field="result"><button class="wh-th-btn" type="button" data-sort="result">Result</button></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
   </section>
 
-  <section class="wh-section" id="history">
-    <div class="wh-section-head">
-      <h2>Did the team hit target?</h2>
-      <p class="wh-muted">Each cell is that day's rate as a percent of target. Pick a day above the grid to load it.</p>
-    </div>
-    <div class="wh-panel">
-      <div class="wh-legend"><span><i style="background: color-mix(in srgb, var(--color-ok) 22%, transparent)"></i>Hit (100% or more)</span><span><i style="background: color-mix(in srgb, var(--color-bad) 24%, transparent)"></i>Missed</span></div>
-      <div class="wh-matrix-wrap"><div class="wh-matrix" id="wh-matrix" data-source="kpi_rates kpi_hits"></div></div>
-    </div>
-  </section>
-
+  <!-- ================= RETURNS ================= -->
   <section class="wh-section" id="returns">
     <div class="wh-section-head">
-      <h2>Returns</h2>
-      <p class="wh-muted">Boxes received back from customers and carriers.</p>
+      <h2>Returns <span class="wh-sample">Sample figures · send your returns sheet</span></h2>
+      <div class="wh-filter"><label class="wh-muted" for="wh-day">Day</label><select id="wh-day" class="wh-select" data-source="safety"></select></div>
     </div>
     <div class="wh-two">
       <div class="wh-panel" id="returns-trend">
@@ -162,16 +186,17 @@
     </div>
   </section>
 
+  <!-- ================= SAFETY ================= -->
   <section class="wh-section" id="safety">
     <div class="wh-section-head">
-      <h2>Safety</h2>
+      <h2>Safety <span class="wh-sample">Sample figures · send your safety sheet</span></h2>
       <p class="wh-window" id="wh-window"></p>
     </div>
-    <div class="wh-stds" id="wh-stds"></div>
+    <div class="wh-tiles is-small" id="wh-stds"></div>
     <div class="wh-panel" id="safety-log">
       <h3>Incident and observation log</h3>
       <div class="wh-table-wrap">
-        <table class="wh-table" id="wh-log" data-source="safety_log" data-row-key="id">
+        <table class="wh-table wh-log" id="wh-log" data-source="safety_log" data-row-key="id">
           <thead><tr>
             <th data-field="id">ID</th><th data-field="date">Date</th><th data-field="area">Area</th><th data-field="type">Type</th><th data-field="description">What happened</th><th data-field="action">Action taken</th><th data-field="status">Status</th>
           </tr></thead>
@@ -184,38 +209,87 @@
 
 <script>
 (() => {
-  /* ---------- calculations (readers see these in Sources) ---------- */
-  dash.calc('kpi_rates', {
-    inputs: ['ops'],
-    title: 'KPI rates vs target',
-    description: 'Rate per hour is quantity divided by hours worked; a KPI is hit when that rate reaches its target per hour.',
-    fn: (ops) => ops.map((r) => {
-      const qty = Number(r.qty), hours = Number(r.hours), crew = Number(r.crew), target = Number(r.target_per_hr);
-      const k = target < 5 ? 100 : 10;
-      const raw = qty / hours;
+  /* ================= calculations ================= */
+  dash.calc('vic_rec_days', {
+    inputs: ['vic_receiving'],
+    title: 'VIC receiving KPIs by day',
+    description: 'Man-hours per container (target 14 or less), boxes per man-hour, and random box checks against 3 per SKU.',
+    fn: (vic_receiving) => vic_receiving.map((r) => {
+      const containers = Number(r.containers_unloaded_po) + Number(r.containers_unloaded_st);
+      const hours = Number(r.unloading_hours);
+      const required = Number(r.skus_received) * 3;
+      const hrs_per_container = containers ? Math.round((hours / containers) * 100) / 100 : null;
+      const check_pct = required ? Math.round((Number(r.random_box_checks) / required) * 100) : null;
       return {
-        date: r.date, kpi_id: r.kpi_id, area: r.area, step: Number(r.step), activity: r.activity, kpi: r.kpi, unit: r.unit,
-        target, rate: Math.round(raw * k) / k, per_person: Math.round((raw / crew) * k) / k,
-        pct_of_target: Math.round((raw / target) * 1000) / 10, result: raw >= target ? 'Hit' : 'Missed',
+        day: r.day, day_no: Number(r.day_no), containers, hrs_per_container,
+        unload_result: hrs_per_container == null ? 'No containers' : hrs_per_container <= 14 ? 'Hit' : 'Missed',
+        boxes_per_manhour: hours ? Math.round((Number(r.boxes_received) / hours) * 10) / 10 : null,
+        pallets_per_container: containers ? Math.round((Number(r.pallets_used) / containers) * 10) / 10 : null,
+        checks_required: required, check_pct, check_result: check_pct == null || check_pct >= 100 ? 'Hit' : 'Missed',
       };
     }),
   });
 
-  dash.calc('kpi_hits', {
-    inputs: ['kpi_rates'],
-    title: 'KPIs hit per day',
-    description: 'How many KPIs reached target each day, for receiving, dispatch and all together.',
-    fn: (kpi_rates) => {
-      const out = [];
-      const dates = [...new Set(kpi_rates.map((r) => r.date))];
-      for (const date of dates) {
-        for (const area of ['All', 'Receiving', 'Dispatch']) {
-          const rows = kpi_rates.filter((r) => r.date === date && (area === 'All' || r.area === area));
-          out.push({ date, area, hit: rows.filter((r) => r.result === 'Hit').length, total: rows.length });
-        }
-      }
-      return out;
+  dash.calc('vic_rec_week', {
+    inputs: ['vic_receiving'],
+    title: 'VIC receiving week totals',
+    description: 'Week totals; man-hours per container is total hours ÷ total containers unloaded; discrepancy accuracy is containers without a discrepancy ÷ containers unloaded (target 99.5%).',
+    fn: (vic_receiving) => {
+      const sum = (f) => vic_receiving.reduce((s, r) => s + Number(r[f]), 0);
+      const count = (f, v) => vic_receiving.filter((r) => r[f] === v).length;
+      const unloaded = sum('containers_unloaded_po') + sum('containers_unloaded_st');
+      const hours = sum('unloading_hours');
+      const checks_required = sum('skus_received') * 3;
+      const discrepancies = sum('discrepancies');
+      return [{
+        days: vic_receiving.length,
+        containers_delivered_po: sum('containers_delivered_po'), containers_unloaded_po: sum('containers_unloaded_po'),
+        containers_received_st: sum('containers_received_st'), containers_unloaded_st: sum('containers_unloaded_st'),
+        containers_unloaded: unloaded, containers_sent_out: sum('containers_sent_out'), discrepancies,
+        skus_received: sum('skus_received'), pallets_used: sum('pallets_used'), people_unloading: sum('people_unloading'),
+        unloading_hours: Math.round(hours * 10) / 10,
+        hrs_per_container: unloaded ? Math.round((hours / unloaded) * 100) / 100 : null,
+        cbm_received: sum('cbm_received'), boxes_received: sum('boxes_received'),
+        boxes_per_manhour: hours ? Math.round((sum('boxes_received') / hours) * 10) / 10 : null,
+        pallets_per_container: unloaded ? Math.round((sum('pallets_used') / unloaded) * 10) / 10 : null,
+        random_box_checks: sum('random_box_checks'), checks_required,
+        check_pct: checks_required ? Math.round((sum('random_box_checks') / checks_required) * 100) : null,
+        accuracy_pct: unloaded ? Math.round((1 - discrepancies / unloaded) * 1000) / 10 : null,
+        unloaded_same_day: count('unloaded_same_day', 'Yes'), container_detention: count('container_detention', 'Yes'),
+        pallets_left_behind: count('pallets_left_behind', 'Yes'),
+      }];
     },
+  });
+
+  dash.calc('pick_people', {
+    inputs: ['picking'],
+    title: 'Pickers vs target',
+    description: 'Picking hours are boxes ÷ pick rate. A picker hits target at 25 boxes/hr or more; under 50 boxes in the month is not scored.',
+    fn: (picking) => picking.map((r) => {
+      const boxes = Number(r.boxes), pickrate = Number(r.pickrate);
+      return {
+        picker: r.picker, warehouse: r.warehouse, boxes, bins: Number(r.bins), pickrate,
+        hours: pickrate ? Math.round((boxes / pickrate) * 10) / 10 : null,
+        result: boxes < 50 ? 'Too few boxes' : pickrate >= 25 ? 'Hit' : 'Missed',
+      };
+    }),
+  });
+
+  dash.calc('pick_wh', {
+    inputs: ['picking'],
+    title: 'Pick rate by warehouse',
+    description: 'Each warehouse’s total boxes ÷ total picking hours, and how many scored pickers (50+ boxes) reached 25 boxes/hr.',
+    fn: (picking) => ['All', 'VIC', 'NSW', 'QLD', 'WA'].map((warehouse) => {
+      const rows = picking.filter((r) => warehouse === 'All' || r.warehouse === warehouse);
+      const boxes = rows.reduce((s, r) => s + Number(r.boxes), 0);
+      const hours = rows.reduce((s, r) => s + Number(r.boxes) / Number(r.pickrate), 0);
+      const scored = rows.filter((r) => Number(r.boxes) >= 50);
+      return {
+        warehouse, pickers: rows.length, boxes, bins: rows.reduce((s, r) => s + Number(r.bins), 0),
+        hours: Math.round(hours * 10) / 10, pickrate: hours ? Math.round((boxes / hours) * 100) / 100 : null,
+        scored: scored.length, hit: scored.filter((r) => Number(r.pickrate) >= 25).length,
+      };
+    }),
   });
 
   dash.calc('returns_by_day', {
@@ -227,24 +301,6 @@
       for (const r of returns) totals[r.date] = (totals[r.date] || 0) + Number(r.boxes);
       return Object.keys(totals).sort().map((date) => ({ date, boxes: totals[date] }));
     },
-  });
-
-  dash.calc('safety_day', {
-    inputs: ['safety'],
-    title: 'Safety standards met',
-    description: 'Six daily standards: no lost-time injury, no first aid case, every forklift pre-start check done, PPE audit 95% or more, housekeeping 4 of 5 or more, toolbox talk held.',
-    fn: (safety) => safety.map((r) => {
-      const forklift_check_pct = Math.round((Number(r.forklift_checks_done) / Number(r.forklift_checks_required)) * 100);
-      const checks = [
-        Number(r.lost_time_injuries) === 0,
-        Number(r.first_aid_cases) === 0,
-        forklift_check_pct >= 100,
-        Number(r.ppe_audit_pct) >= 95,
-        Number(r.housekeeping_score) >= 4,
-        r.toolbox_talk === 'Yes',
-      ];
-      return { date: r.date, forklift_check_pct, standards_met: checks.filter(Boolean).length, standards_total: checks.length };
-    }),
   });
 
   dash.calc('safety_window', {
@@ -260,13 +316,12 @@
     }],
   });
 
-  /* ---------- helpers ---------- */
+  /* ================= helpers ================= */
   const $ = (s) => document.querySelector(s);
   const fmt = d3.format(',');
   const parse = (s) => new Date(String(s).slice(0, 10) + 'T00:00:00Z');
   const dayFmt = d3.utcFormat('%a %b %-d');
   const shortFmt = d3.utcFormat('%b %-d');
-  const wdFmt = d3.utcFormat('%a');
   const enc = (s) => String(s).replace(/%/g, '%25').replace(/&/g, '%26').replace(/=/g, '%3D');
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const mark = (e, source, field, where, row) => {
@@ -276,22 +331,22 @@
     if (row != null) e.dataset.row = String(row);
     return e;
   };
-  const val = (text, source, field, where, cls) => mark(el(cls ? 'b' : 'b', cls || '', text), source, field, where);
+  const m = (text, source, field, where, row, tag) => mark(el(tag || 'b', '', text), source, field, where, row);
   const FAILED = ['error', 'connect', 'declined', 'missing'];
   const st = (id) => dash.data(id);
   const ok = (id) => st(id).status === 'ok';
   const failed = (id) => FAILED.includes(st(id).status);
-  const failLine = () => el('div', 'wh-fail', 'Failed to load');
   const gate = (box, ids) => {
-    if (ids.some(failed)) { box.classList.remove('dash-skeleton'); box.replaceChildren(failLine()); return false; }
+    if (ids.some(failed)) { box.classList.remove('dash-skeleton'); box.replaceChildren(el('div', 'wh-fail', 'Failed to load')); return false; }
     if (!ids.every(ok)) { box.classList.add('dash-skeleton'); box.replaceChildren(); return false; }
     box.classList.remove('dash-skeleton');
     return true;
   };
-  const statusCls = (hit, total) => (hit === total ? 'is-ok' : hit / total >= 0.7 ? 'is-warn' : 'is-bad');
-  const valFmt = (v) => fmt(v);
+  const pill = (text, cls) => el('span', 'wh-pill ' + cls, text);
+  const resCls = (r) => (r === 'Hit' ? 'is-ok' : r === 'Missed' ? 'is-bad' : 'is-neutral');
+  const PICK_TARGET = 25;
+  const HOURS_TARGET = 14;
 
-  /* ---------- tooltip ---------- */
   const tip = $('#wh-tip');
   const root = $('.wh');
   const showTip = (event, head, lines) => {
@@ -299,202 +354,258 @@
     tip.hidden = false;
     const host = root.getBoundingClientRect();
     let x = event.clientX - host.left + 12;
-    const y = event.clientY - host.top + 14;
     if (x + tip.offsetWidth > host.width) x = event.clientX - host.left - tip.offsetWidth - 12;
     tip.style.left = Math.max(0, x) + 'px';
-    tip.style.top = y + 'px';
+    tip.style.top = event.clientY - host.top + 14 + 'px';
   };
   const hideTip = () => { tip.hidden = true; };
 
-  /* ---------- day picker ---------- */
-  const daySel = $('#wh-day');
-  daySel.addEventListener('change', () => dash.setParams({ day: daySel.value }));
-  let animated = false;
+  const tile = (label, valueParts, note, pillEl, cls) => {
+    const t = el('div', 'wh-tile');
+    const row = el('div', 'wh-tile-row');
+    const v = el('div', 'wh-tile-v' + (cls ? ' ' + cls : ''));
+    v.append(...[].concat(valueParts));
+    row.append(v);
+    if (pillEl) row.append(pillEl);
+    const n = el('div', 'wh-tile-n');
+    n.append(...[].concat(note));
+    t.append(el('div', 'wh-tile-k', label), row, n);
+    return t;
+  };
 
-  /* ---------- sections ---------- */
-  function drawSummary(day) {
-    const ids = { all: ['All', '#s-all-hit', '#s-all-tot', '#s-all-note'], rec: ['Receiving', '#s-rec-hit', '#s-rec-tot', '#s-rec-note'], dis: ['Dispatch', '#s-dis-hit', '#s-dis-tot', '#s-dis-note'] };
-    const hits = ok('kpi_hits') ? st('kpi_hits').data : [];
-    const rates = ok('kpi_rates') ? st('kpi_rates').data : [];
-    for (const [area, hitSel, totSel, noteSel] of Object.values(ids)) {
-      const h = $(hitSel), t = $(totSel), n = $(noteSel);
-      const row = hits.find((r) => r.date === day && r.area === area);
-      if (!row) { h.textContent = '—'; t.textContent = '—'; n.textContent = ''; h.classList.toggle('dash-skeleton', !failed('kpi_hits')); continue; }
-      h.classList.remove('dash-skeleton');
-      const w = { date: day, area };
-      mark(h, 'kpi_hits', 'hit', w); mark(t, 'kpi_hits', 'total', w);
-      h.textContent = row.hit; t.textContent = row.total;
-      h.className = statusCls(row.hit, row.total);
-      const missed = rates.filter((r) => r.date === day && r.result === 'Missed' && (area === 'All' || r.area === area));
-      n.textContent = missed.length === 0 ? 'Every target met' : 'Missed: ' + [...new Set(missed.map((r) => r.activity + (r.activity === 'Unloading' || r.activity === 'Dispatch' ? ' ' + r.kpi.replace('/hr', '').toLowerCase() : '')))].join(', ');
-    }
-
-    const sm = $('#s-saf-met'), stt = $('#s-saf-tot'), sn = $('#s-saf-note');
-    const sd = ok('safety_day') ? st('safety_day').data.find((r) => r.date === day) : null;
-    if (sd) {
-      sm.classList.remove('dash-skeleton');
-      mark(sm, 'safety_day', 'standards_met', { date: day }); mark(stt, 'safety_day', 'standards_total', { date: day });
-      sm.textContent = sd.standards_met; stt.textContent = sd.standards_total;
-      sm.className = sd.standards_met === sd.standards_total ? 'is-ok' : 'is-bad';
-      sn.textContent = sd.standards_met === sd.standards_total ? 'Clean day' : 'See safety below';
-    } else { sm.textContent = '—'; stt.textContent = '—'; sn.textContent = ''; sm.classList.toggle('dash-skeleton', !failed('safety')); }
-
-    const rv = $('#s-ret'), rn = $('#s-ret-note');
-    const rd = ok('returns_by_day') ? st('returns_by_day').data.find((r) => r.date === day) : null;
-    if (rd) {
-      rv.classList.remove('dash-skeleton');
-      mark(rv, 'returns_by_day', 'boxes', { date: day });
-      rv.textContent = fmt(rd.boxes);
-      const top = ok('returns') ? st('returns').data.filter((r) => r.date === day).sort((a, b) => Number(b.boxes) - Number(a.boxes))[0] : null;
-      rn.textContent = top ? 'Most: ' + top.reason.toLowerCase() : '';
-    } else { rv.textContent = '—'; rn.textContent = ''; rv.classList.toggle('dash-skeleton', !failed('returns')); }
-  }
-
-  function drawTakeaway(day) {
+  /* ================= header ================= */
+  function drawTakeaway() {
     const p = $('#wh-take');
-    if (['kpi_hits', 'safety_day', 'returns_by_day'].some(failed)) { p.classList.remove('dash-skeleton'); p.textContent = 'Some figures failed to load. Open Sources to see which.'; return; }
-    const all = ok('kpi_hits') ? st('kpi_hits').data.find((r) => r.date === day && r.area === 'All') : null;
-    const sd = ok('safety_day') ? st('safety_day').data.find((r) => r.date === day) : null;
-    const rd = ok('returns_by_day') ? st('returns_by_day').data.find((r) => r.date === day) : null;
-    if (!all || !sd || !rd) { p.classList.add('dash-skeleton'); p.textContent = '—'; return; }
+    if (['vic_rec_week', 'pick_wh'].some(failed)) { p.classList.remove('dash-skeleton'); p.textContent = 'Some figures failed to load. Open Sources to see which.'; return; }
+    if (!ok('vic_rec_week') || !ok('pick_wh')) return;
     p.classList.remove('dash-skeleton');
-    const w = { date: day, area: 'All' };
+    const w = st('vic_rec_week').data[0];
+    const all = st('pick_wh').data.find((r) => r.warehouse === 'All');
+    const wa = { warehouse: 'All' };
     p.replaceChildren(
-      dayFmt(parse(day)) + ': the team hit ', val(all.hit, 'kpi_hits', 'hit', w), ' of ', val(all.total, 'kpi_hits', 'total', w),
-      ' KPIs, met ', val(sd.standards_met, 'safety_day', 'standards_met', { date: day }), ' of ', val(sd.standards_total, 'safety_day', 'standards_total', { date: day }),
-      ' safety standards, and took back ', val(fmt(rd.boxes), 'returns_by_day', 'boxes', { date: day }), ' returned boxes.'
+      'VIC unloaded ', m(w.containers_unloaded, 'vic_rec_week', 'containers_unloaded', null, 0), ' containers this week at ',
+      m(w.hrs_per_container, 'vic_rec_week', 'hrs_per_container', null, 0), ' man-hours each (target 14), but pallets were left behind on ',
+      m(w.pallets_left_behind, 'vic_rec_week', 'pallets_left_behind', null, 0), ' days. In September picking, ',
+      m(all.hit, 'pick_wh', 'hit', wa), ' of ', m(all.scored, 'pick_wh', 'scored', wa), ' scored pickers reached 25 boxes/hr; all warehouses together picked at ',
+      m(all.pickrate, 'pick_wh', 'pickrate', wa), ' boxes/hr.'
     );
   }
 
-  function drawCards(area, sel, day) {
-    const box = $(sel);
-    if (!gate(box, ['ops', 'kpi_rates'])) return;
-    const rates = st('kpi_rates').data.filter((r) => r.area === area);
-    const ops = st('ops').data;
-    const kpis = [...new Map(rates.map((r) => [r.kpi_id, r])).values()].sort((a, b) => a.step - b.step);
-    box.replaceChildren(...kpis.map((k) => {
-      const series = rates.filter((r) => r.kpi_id === k.kpi_id).sort((a, b) => (a.date < b.date ? -1 : 1));
-      const r = series.find((x) => x.date === day);
-      const o = ops.find((x) => x.date === day && x.kpi_id === k.kpi_id);
-      const w = { date: day, kpi_id: k.kpi_id };
-      const card = el('article', 'wh-card' + (animated ? '' : ' wh-in'));
-      card.id = 'kpi-' + k.kpi_id;
-      card.append(el('div', 'wh-eyebrow', area === 'Receiving' ? 'Step ' + k.step + ' · ' + k.activity : k.activity), el('h3', '', k.kpi));
-      if (!r || !o) { card.append(el('p', 'wh-muted', 'No figures for this day.')); return card; }
-      const row = el('div', 'wh-value-row');
-      const pill = mark(el('span', 'wh-pill ' + (r.result === 'Hit' ? 'is-ok' : 'is-bad'), r.result), 'kpi_rates', 'result', w);
-      row.append(mark(el('span', 'wh-big', valFmt(r.rate)), 'kpi_rates', 'rate', w), pill);
-      const tline = el('p', 'wh-line');
-      tline.append('Target ', val(valFmt(r.target), 'kpi_rates', 'target', w), ' · ', val(r.pct_of_target, 'kpi_rates', 'pct_of_target', w), '% of target');
-      const crewWord = k.kpi_id === 'disp_replen' ? ' replenishers' : ' crew';
-      const dline = el('p', 'wh-line');
-      dline.append(val(fmt(Number(o.qty)), 'ops', 'qty', w), ' ' + o.unit + ' in ', val(o.hours, 'ops', 'hours', w), ' h · ',
-        val(o.crew, 'ops', 'crew', w), crewWord + ' · ', val(valFmt(r.per_person), 'kpi_rates', 'per_person', w), ' per person/hr');
-      const spark = el('div', 'wh-spark');
-      spark.dataset.source = 'kpi_rates';
-      spark._d = { series, day, target: r.target, unit: k.kpi };
-      card.append(row, tline, dline, spark);
-      return card;
-    }));
-    box.querySelectorAll('.wh-spark').forEach(drawSpark);
-  }
-
-  function drawSpark(div) {
-    const { series, day, target, unit } = div._d;
-    const W = Math.max(120, div.clientWidth || 240), H = 48, m = { t: 6, r: 6, b: 6, l: 6 };
-    const x = d3.scalePoint(series.map((s) => s.date), [m.l, W - m.r]);
-    const vals = series.map((s) => s.rate).concat([target]);
-    const lo = d3.min(vals), hi = d3.max(vals), pad = (hi - lo) * 0.12 || hi * 0.05;
-    const y = d3.scaleLinear([lo - pad, hi + pad], [H - m.b, m.t]);
-    const svg = d3.create('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img')
-      .attr('aria-label', unit + ' by day against target');
-    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(target)).attr('y2', y(target))
-      .style('stroke', 'var(--cds-chart-reference)').attr('stroke-width', 1).attr('stroke-dasharray', '3 3');
-    svg.append('path').attr('d', d3.line((s) => x(s.date), (s) => y(s.rate))(series)).attr('fill', 'none')
-      .style('stroke', dash.colors[0]).attr('stroke-width', 2).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round');
-    svg.append('g').selectAll('circle').data(series).join('circle')
-      .attr('cx', (s) => x(s.date)).attr('cy', (s) => y(s.rate)).attr('r', (s) => (s.date === day ? 4.5 : 2.5))
-      .style('fill', (s) => (s.result === 'Hit' ? 'var(--color-ok)' : 'var(--color-bad)'))
-      .style('stroke', 'var(--color-panel)').attr('stroke-width', (s) => (s.date === day ? 2 : 1));
-    const hover = svg.append('circle').attr('r', 5).style('fill', 'none').style('stroke', 'var(--color-fg)').attr('stroke-width', 1.5).attr('visibility', 'hidden');
-    svg.append('rect').attr('width', W).attr('height', H).style('fill', 'transparent')
-      .on('pointermove', (event) => {
-        const [px] = d3.pointer(event);
-        const s = d3.least(series, (d) => Math.abs(x(d.date) - px));
-        hover.attr('cx', x(s.date)).attr('cy', y(s.rate)).attr('visibility', 'visible');
-        showTip(event, dayFmt(parse(s.date)), [fmt(s.rate) + ' ' + unit.replace('/hr', '').toLowerCase() + '/hr · target ' + fmt(s.target), s.result + ' (' + s.pct_of_target + '% of target)']);
-      })
-      .on('pointerleave', () => { hover.attr('visibility', 'hidden'); hideTip(); });
-    div.replaceChildren(svg.node());
-  }
-
-  function drawMatrix(day, dates) {
-    const box = $('#wh-matrix');
-    if (!gate(box, ['kpi_rates', 'kpi_hits'])) return;
-    const rates = st('kpi_rates').data;
-    const hits = st('kpi_hits').data;
-    const kpis = [...new Map(rates.map((r) => [r.kpi_id, r])).values()]
-      .sort((a, b) => (a.area === b.area ? a.step - b.step : a.area === 'Receiving' ? -1 : 1));
-    box.style.gridTemplateColumns = `minmax(9rem, 12rem) repeat(${dates.length}, minmax(2.4rem, 1fr))`;
-    const kids = [el('div', '')];
-    for (const d of dates) {
-      const b = el('button', 'wh-mday');
-      b.type = 'button';
-      b.setAttribute('aria-pressed', String(d === day));
-      b.append(el('div', '', wdFmt(parse(d))), el('div', '', shortFmt(parse(d))));
-      b.addEventListener('click', () => dash.setParams({ day: d }));
-      kids.push(b);
+  /* ================= receiving ================= */
+  function drawReceiving() {
+    const kpis = $('#rec-kpis'), vol = $('#rec-volume');
+    if (gate(kpis, ['vic_rec_week']) && gate(vol, ['vic_rec_week'])) {
+      const w = st('vic_rec_week').data[0];
+      const f = (field, text) => m(text != null ? text : fmt(w[field]), 'vic_rec_week', field, null, 0, 'span');
+      const hit = (b) => pill(b ? 'Hit' : 'Missed', b ? 'is-ok' : 'is-bad');
+      kpis.replaceChildren(
+        tile('Unloading man-hours per container', f('hrs_per_container', String(w.hrs_per_container)), 'Target 14 h or less', hit(w.hrs_per_container <= HOURS_TARGET)),
+        tile('Containers unloaded', [f('containers_unloaded'), el('span', 'wh-of', ' of '), f('containers_delivered_po')],
+          [f('unloaded_same_day'), ' of ', f('days'), ' days unloaded on the receiving date'], hit(w.containers_unloaded >= w.containers_delivered_po && w.unloaded_same_day === w.days)),
+        tile('Random box checks', [f('random_box_checks'), el('span', 'wh-of', ' of '), f('checks_required')], ['3 boxes per SKU · ', f('check_pct'), '% done'], hit(w.check_pct >= 100)),
+        tile('PO & ST discrepancy accuracy', [f('accuracy_pct'), el('span', 'wh-of', '%')], [f('discrepancies'), ' discrepancies · target 99.5%'], hit(w.accuracy_pct >= 99.5)),
+        tile('Pallets left behind', [f('pallets_left_behind'), el('span', 'wh-of', ' days')], 'Target 0 days', hit(w.pallets_left_behind === 0)),
+        tile('Container detention', [f('container_detention'), el('span', 'wh-of', ' days')], 'Target 0 days', hit(w.container_detention === 0)),
+      );
+      vol.replaceChildren(
+        tile('Boxes received', f('boxes_received'), ''),
+        tile('CBM received', f('cbm_received'), ''),
+        tile('SKUs received', f('skus_received'), ''),
+        tile('Pallets used', f('pallets_used'), [f('pallets_per_container', String(w.pallets_per_container)), ' per container']),
+        tile('Boxes per man-hour', f('boxes_per_manhour', String(w.boxes_per_manhour)), [f('unloading_hours', String(w.unloading_hours)), ' man-hours']),
+        tile('Containers sent out', f('containers_sent_out'), ''),
+      );
     }
-    let area = null;
-    for (const k of kpis) {
-      if (k.area !== area) { area = k.area; kids.push(el('div', 'wh-mgroup', area)); }
-      const lab = el('div', 'wh-mlabel');
-      lab.append(el('span', '', k.activity), el('span', '', k.kpi));
-      kids.push(lab);
-      for (const d of dates) {
-        const r = rates.find((x) => x.date === d && x.kpi_id === k.kpi_id);
-        const c = el('div', 'wh-cell' + (r ? (r.result === 'Hit' ? ' is-hit' : ' is-miss') : '') + (d === day ? ' is-sel' : ''), r ? String(Math.round(r.pct_of_target)) : '');
-        if (r) {
-          c.tabIndex = 0;
-          c.setAttribute('aria-label', `${k.activity} ${k.kpi}, ${dayFmt(parse(d))}: ${r.rate}, ${r.result}`);
-          c.addEventListener('pointermove', (event) => showTip(event, k.activity + ' · ' + k.kpi + ' · ' + shortFmt(parse(d)), [fmt(r.rate) + ' vs target ' + fmt(r.target), r.result + ' (' + r.pct_of_target + '%)']));
-          c.addEventListener('pointerleave', hideTip);
-        }
-        kids.push(c);
+    drawHoursChart();
+    drawSheet();
+  }
+
+  function drawHoursChart() {
+    const box = $('#rec-hours-chart');
+    if (!gate(box, ['vic_rec_days'])) return;
+    const rows = st('vic_rec_days').data.filter((r) => r.hrs_per_container != null).sort((a, b) => a.day_no - b.day_no);
+    const W = Math.max(260, box.clientWidth || 400), H = 200, left = 30, bottom = 22, top = 10;
+    const max = Math.max(HOURS_TARGET, d3.max(rows, (r) => r.hrs_per_container)) * 1.12;
+    const y = d3.scaleLinear([0, max], [H - bottom, top]).nice();
+    const x = d3.scaleBand(rows.map((r) => r.day), [left, W - 4]).padding(0.3);
+    const svg = d3.create('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Unloading man-hours per container by day');
+    svg.append('g').selectAll('line').data(y.ticks(4)).join('line').attr('x1', left).attr('x2', W - 4).attr('y1', (t) => y(t)).attr('y2', (t) => y(t)).style('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').selectAll('text').data(y.ticks(4)).join('text').attr('x', left - 6).attr('y', (t) => y(t)).attr('dy', '0.32em').attr('text-anchor', 'end')
+      .style('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text((t) => t);
+    svg.append('g').selectAll('rect').data(rows).join('rect')
+      .attr('x', (r) => x(r.day)).attr('width', Math.min(32, x.bandwidth())).attr('transform', `translate(${Math.max(0, (x.bandwidth() - 32) / 2)},0)`)
+      .attr('y', (r) => y(r.hrs_per_container)).attr('height', (r) => y(0) - y(r.hrs_per_container)).attr('rx', 4)
+      .style('fill', (r) => (r.unload_result === 'Hit' ? dash.colors[0] : 'var(--cds-chart-status-critical)'))
+      .on('pointermove', (event, r) => showTip(event, r.day, [r.hrs_per_container + ' man-hours per container', r.containers + ' containers · ' + r.unload_result]))
+      .on('pointerleave', hideTip);
+    svg.append('line').attr('x1', left).attr('x2', W - 4).attr('y1', y(HOURS_TARGET)).attr('y2', y(HOURS_TARGET))
+      .style('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+    svg.append('text').attr('x', W - 4).attr('y', y(HOURS_TARGET) - 5).attr('text-anchor', 'end').style('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text('Target 14 h');
+    svg.append('g').selectAll('text').data(rows).join('text').attr('x', (r) => x(r.day) + x.bandwidth() / 2).attr('y', H - 5).attr('text-anchor', 'middle')
+      .style('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text((r) => r.day.slice(0, 3));
+    box.replaceChildren(svg.node());
+  }
+
+  function drawSheet() {
+    const table = $('#rec-sheet');
+    const thead = table.querySelector('thead'), tbody = table.querySelector('tbody');
+    const ids = ['vic_receiving', 'vic_rec_days', 'vic_rec_week'];
+    if (ids.some(failed)) { thead.replaceChildren(); const tr = el('tr'); const td = el('td'); td.append(el('div', 'wh-fail', 'Failed to load')); tr.append(td); tbody.replaceChildren(tr); return; }
+    if (!ids.every(ok)) { tbody.replaceChildren(); return; }
+    const raw = st('vic_receiving').data.slice().sort((a, b) => Number(a.day_no) - Number(b.day_no));
+    const calc = st('vic_rec_days').data;
+    const week = st('vic_rec_week').data[0];
+    const hr = el('tr');
+    hr.append(el('th', '', 'Description'), ...raw.map((r) => el('th', 'num', r.day)), el('th', 'num wk', 'Week'));
+    thead.replaceChildren(hr);
+    // [label, source for days, field, week field, status(dayRaw, dayCalc) -> true/false/null, format]
+    const ROWS = [
+      ['group', 'Containers'],
+      ['Containers delivered (PO)', 'vic_receiving', 'containers_delivered_po', 'containers_delivered_po'],
+      ['Containers unloaded (PO)', 'vic_receiving', 'containers_unloaded_po', 'containers_unloaded_po'],
+      ['Containers received (ST)', 'vic_receiving', 'containers_received_st', 'containers_received_st'],
+      ['Containers unloaded (ST)', 'vic_receiving', 'containers_unloaded_st', 'containers_unloaded_st'],
+      ['Discrepancies found', 'vic_receiving', 'discrepancies', 'discrepancies', (r) => Number(r.discrepancies) === 0],
+      ['Containers sent out', 'vic_receiving', 'containers_sent_out', 'containers_sent_out'],
+      ['Unloaded on the receiving date', 'vic_receiving', 'unloaded_same_day', 'unloaded_same_day', (r) => r.unloaded_same_day === 'Yes'],
+      ['Container detention', 'vic_receiving', 'container_detention', 'container_detention', (r) => r.container_detention === 'No'],
+      ['Pallets left behind', 'vic_receiving', 'pallets_left_behind', 'pallets_left_behind', (r) => r.pallets_left_behind === 'No'],
+      ['group', 'Unloading'],
+      ['People unloading', 'vic_receiving', 'people_unloading', 'people_unloading'],
+      ['Unloading man-hours', 'vic_receiving', 'unloading_hours', 'unloading_hours'],
+      ['Man-hours per container (target ≤ 14)', 'vic_rec_days', 'hrs_per_container', 'hrs_per_container', (r, c) => (c.hrs_per_container == null ? null : c.hrs_per_container <= HOURS_TARGET)],
+      ['Pallets used to unload', 'vic_receiving', 'pallets_used', 'pallets_used'],
+      ['Pallets per container', 'vic_rec_days', 'pallets_per_container', 'pallets_per_container'],
+      ['group', 'Received'],
+      ['SKUs received', 'vic_receiving', 'skus_received', 'skus_received'],
+      ['Boxes received', 'vic_receiving', 'boxes_received', 'boxes_received'],
+      ['CBM received', 'vic_receiving', 'cbm_received', 'cbm_received'],
+      ['Boxes per man-hour', 'vic_rec_days', 'boxes_per_manhour', 'boxes_per_manhour'],
+      ['Random box checks (3 per SKU)', 'vic_receiving', 'random_box_checks', 'random_box_checks', (r, c) => c.check_pct >= 100],
+      ['Checks required', 'vic_rec_days', 'checks_required', 'checks_required'],
+    ];
+    const cellText = (v) => (v == null ? '–' : typeof v === 'number' ? fmt(v) : String(v));
+    tbody.replaceChildren(...ROWS.map((row) => {
+      if (row[0] === 'group') { const tr = el('tr', 'wh-group'); const td = el('td', '', row[1]); td.colSpan = raw.length + 2; tr.append(td); return tr; }
+      const [label, src, field, wkField, status] = row;
+      const tr = el('tr', status ? 'is-kpi' : '');
+      tr.append(el('td', '', label));
+      for (const r of raw) {
+        const c = calc.find((x) => x.day === r.day);
+        const v = src === 'vic_receiving' ? (isNaN(Number(r[field])) ? r[field] : Number(r[field])) : c[field];
+        const s = status ? status(r, c) : null;
+        const td = el('td', 'num' + (s === true ? ' is-hit' : s === false ? ' is-miss' : ''));
+        td.append(m(cellText(v), src, field, { day: r.day }, null, 'span'));
+        tr.append(td);
       }
-    }
-    const tl = el('div', 'wh-mlabel');
-    tl.append(el('span', '', 'KPIs hit'), el('span', '', 'all areas'));
-    kids.push(tl);
-    for (const d of dates) {
-      const h = hits.find((x) => x.date === d && x.area === 'All');
-      kids.push(el('div', 'wh-cell is-total', h ? h.hit + '/' + h.total : ''));
-    }
-    box.replaceChildren(...kids);
+      const wtd = el('td', 'num wk');
+      wtd.append(m(cellText(week[wkField]), 'vic_rec_week', wkField, null, 0, 'span'));
+      tr.append(wtd);
+      return tr;
+    }));
   }
+
+  /* ================= picking ================= */
+  let sortKey = 'pickrate', sortDir = -1;
+  document.querySelectorAll('#pick-table .wh-th-btn').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.sort;
+    if (k === sortKey) sortDir = -sortDir; else { sortKey = k; sortDir = ['picker', 'warehouse', 'result'].includes(k) ? 1 : -1; }
+    drawPickTable();
+  }));
+
+  function drawPickWarehouses() {
+    const box = $('#pick-wh');
+    if (!gate(box, ['pick_wh'])) return;
+    const sel = dash.params().wh || 'All';
+    box.replaceChildren(...st('pick_wh').data.map((r) => {
+      const w = { warehouse: r.warehouse };
+      const hit = r.pickrate >= PICK_TARGET;
+      const t = tile(r.warehouse === 'All' ? 'All warehouses' : r.warehouse + ' warehouse',
+        m(String(r.pickrate), 'pick_wh', 'pickrate', w, null, 'span'),
+        [m(r.hit, 'pick_wh', 'hit', w), ' of ', m(r.scored, 'pick_wh', 'scored', w), ' pickers on target · ', m(fmt(r.boxes), 'pick_wh', 'boxes', w), ' boxes'],
+        pill(hit ? 'Hit' : 'Missed', hit ? 'is-ok' : 'is-bad'));
+      t.querySelector('.wh-tile-k').textContent += ' · boxes/hr';
+      t.style.cursor = 'pointer';
+      t.tabIndex = 0;
+      t.setAttribute('role', 'button');
+      t.setAttribute('aria-pressed', String(sel === r.warehouse));
+      if (sel === r.warehouse) t.style.borderColor = 'var(--color-fg)';
+      const pick = () => dash.setParams({ wh: r.warehouse });
+      t.addEventListener('click', pick);
+      t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+      return t;
+    }));
+  }
+
+  function drawPickFilter() {
+    const box = $('#pick-filter');
+    const sel = dash.params().wh || 'All';
+    box.replaceChildren(...['All', 'VIC', 'NSW', 'QLD', 'WA'].map((wh) => {
+      const b = el('button', 'wh-chip', wh);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(sel === wh));
+      b.addEventListener('click', () => dash.setParams({ wh }));
+      return b;
+    }));
+  }
+
+  function drawPickTable() {
+    const table = $('#pick-table');
+    const tbody = table.querySelector('tbody');
+    if (failed('pick_people')) { const tr = el('tr'); const td = el('td'); td.colSpan = 7; td.append(el('div', 'wh-fail', 'Failed to load')); tr.append(td); tbody.replaceChildren(tr); return; }
+    if (!ok('pick_people')) { tbody.replaceChildren(); return; }
+    const sel = dash.params().wh || 'All';
+    const rows = st('pick_people').data.filter((r) => sel === 'All' || r.warehouse === sel);
+    const maxRate = Math.min(80, Math.max(PICK_TARGET * 1.6, d3.max(rows, (r) => r.pickrate) || 0));
+    const order = { Hit: 0, Missed: 1, 'Too few boxes': 2 };
+    rows.sort((a, b) => {
+      const av = sortKey === 'result' ? order[a.result] : a[sortKey], bv = sortKey === 'result' ? order[b.result] : b[sortKey];
+      return (av < bv ? -1 : av > bv ? 1 : 0) * sortDir;
+    });
+    table.querySelectorAll('th').forEach((th) => {
+      const k = th.querySelector('button')?.dataset.sort;
+      if (k === sortKey) th.setAttribute('aria-sort', sortDir > 0 ? 'ascending' : 'descending'); else th.removeAttribute('aria-sort');
+    });
+    tbody.replaceChildren(...rows.map((r) => {
+      const tr = el('tr', r.result === 'Too few boxes' ? 'is-low' : '');
+      const rateTd = el('td');
+      const wrap = el('div', 'wh-rate');
+      const bar = el('div', 'wh-rate-bar');
+      const fill = el('i');
+      fill.style.width = Math.min(100, (r.pickrate / maxRate) * 100) + '%';
+      fill.style.background = r.result === 'Hit' ? 'var(--color-ok)' : r.result === 'Missed' ? 'var(--color-bad)' : 'var(--cds-chart-muted)';
+      const tick = el('u');
+      tick.style.left = (PICK_TARGET / maxRate) * 100 + '%';
+      bar.append(fill, tick);
+      wrap.append(el('span', 'num', String(r.pickrate)), bar);
+      rateTd.append(wrap);
+      const resTd = el('td');
+      resTd.append(pill(r.result, resCls(r.result)));
+      tr.append(el('td', '', r.picker), el('td', '', r.warehouse), el('td', 'num', fmt(r.boxes)), el('td', 'num', fmt(r.bins)),
+        el('td', 'num', r.hours == null ? '–' : String(r.hours)), rateTd, resTd);
+      return tr;
+    }));
+  }
+
+  /* ================= returns & safety (sample) ================= */
+  const daySel = $('#wh-day');
+  daySel.addEventListener('change', () => dash.setParams({ day: daySel.value }));
 
   function drawReturns(day) {
     const box = $('#wh-ret-chart');
     if (gate(box, ['returns_by_day'])) {
       const rows = st('returns_by_day').data;
-      const W = Math.max(260, box.clientWidth || 400), H = 200;
+      const W = Math.max(260, box.clientWidth || 400), H = 200, left = 32;
       const svg = d3.create('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Boxes returned per day');
       const y = d3.scaleLinear([0, d3.max(rows, (r) => r.boxes) * 1.1], [H - 24, 8]).nice();
-      const ticks = y.ticks(4);
-      const tmp = svg.append('g').selectAll('text').data(ticks).join('text').style('font-size', 'var(--cds-font-size-caption)').text((t) => fmt(t));
-      box.appendChild(svg.node());
-      const left = Math.ceil(d3.max(tmp.nodes(), (n) => n.getComputedTextLength()) || 20) + 8;
-      svg.node().remove(); tmp.remove();
       const x = d3.scaleBand(rows.map((r) => r.date), [left, W - 4]).padding(0.28);
-      svg.append('g').selectAll('line').data(ticks).join('line').attr('x1', left).attr('x2', W - 4).attr('y1', (t) => y(t)).attr('y2', (t) => y(t))
-        .style('stroke', 'var(--cds-chart-grid)').attr('stroke-width', 1);
-      svg.append('g').selectAll('text').data(ticks).join('text').attr('x', left - 6).attr('y', (t) => y(t)).attr('dy', '0.32em').attr('text-anchor', 'end')
+      svg.append('g').selectAll('line').data(y.ticks(4)).join('line').attr('x1', left).attr('x2', W - 4).attr('y1', (t) => y(t)).attr('y2', (t) => y(t)).style('stroke', 'var(--cds-chart-grid)');
+      svg.append('g').selectAll('text').data(y.ticks(4)).join('text').attr('x', left - 6).attr('y', (t) => y(t)).attr('dy', '0.32em').attr('text-anchor', 'end')
         .style('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text((t) => fmt(t));
-      const every = Math.ceil((rows.length * 44) / (W - left));
-      svg.append('g').selectAll('text').data(rows.filter((r, i) => i % every === 0 || r.date === day)).join('text')
+      const every = Math.ceil((rows.length * 46) / (W - left));
+      svg.append('g').selectAll('text').data(rows.filter((r, i) => i % every === 0)).join('text')
         .attr('x', (r) => x(r.date) + x.bandwidth() / 2).attr('y', H - 6).attr('text-anchor', 'middle')
-        .style('fill', (r) => (r.date === day ? 'var(--color-fg)' : 'var(--color-fg-muted)')).style('font-size', 'var(--cds-font-size-caption)')
-        .text((r) => shortFmt(parse(r.date)));
+        .style('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text((r) => shortFmt(parse(r.date)));
       svg.append('g').selectAll('rect').data(rows).join('rect')
         .attr('x', (r) => x(r.date)).attr('width', x.bandwidth()).attr('y', (r) => y(r.boxes)).attr('height', (r) => y(0) - y(r.boxes)).attr('rx', 4)
         .style('fill', (r) => (r.date === day ? dash.colors[0] : 'var(--cds-chart-muted)')).style('cursor', 'pointer')
@@ -503,7 +614,6 @@
         .on('click', (event, r) => dash.setParams({ day: r.date }));
       box.replaceChildren(svg.node());
     }
-
     const list = $('#wh-reasons');
     $('#wh-reason-title').textContent = day ? 'Why they came back · ' + dayFmt(parse(day)) : 'Why they came back';
     if (!gate(list, ['returns'])) return;
@@ -517,89 +627,79 @@
       fill.style.width = (Number(r.boxes) / max) * 100 + '%';
       fill.style.background = i === 0 ? dash.colors[0] : 'var(--cds-chart-muted)';
       bar.append(fill);
-      line.append(el('span', '', r.reason), bar, mark(el('span', 'wh-reason-v', fmt(Number(r.boxes))), 'returns', 'boxes', { date: day, reason: r.reason }));
+      line.append(el('span', '', r.reason), bar, m(fmt(Number(r.boxes)), 'returns', 'boxes', { date: day, reason: r.reason }, null, 'span'));
+      line.lastChild.className = 'wh-reason-v';
       return line;
     }));
   }
 
   function drawSafety(day) {
     const win = $('#wh-window');
-    if (failed('safety_window')) win.replaceChildren(failLine());
+    if (failed('safety_window')) win.replaceChildren(el('span', 'wh-fail', 'Failed to load'));
     else if (ok('safety_window')) {
       const s = st('safety_window').data[0];
-      const v = (f, cls) => { const b = mark(el('b', cls || '', fmt(s[f])), 'safety_window', f, null, 0); return b; };
+      const v = (f, cls) => { const b = m(fmt(s[f]), 'safety_window', f, null, 0); if (cls) b.className = cls; return b; };
       win.replaceChildren('Across the last ', v('days'), ' working days: ', v('lost_time_injuries', s.lost_time_injuries ? 'is-bad' : 'is-ok'), ' lost-time injuries, ',
         v('first_aid_cases', s.first_aid_cases ? 'is-bad' : 'is-ok'), ' first aid cases, ', v('near_misses'), ' near misses reported and ',
         v('open_actions', s.open_actions ? 'is-warn' : 'is-ok'), ' log actions still open.');
-    } else win.textContent = '';
-
+    }
     const box = $('#wh-stds');
-    if (gate(box, ['safety', 'safety_day'])) {
+    if (gate(box, ['safety'])) {
       const r = st('safety').data.find((x) => x.date === day);
-      const sd = st('safety_day').data.find((x) => x.date === day);
-      if (!r || !sd) box.replaceChildren(el('p', 'wh-muted', 'No safety sheet for this day.'));
+      if (!r) box.replaceChildren(el('p', 'wh-muted', 'No safety sheet for this day.'));
       else {
         const w = { date: day };
-        const tile = (label, valueEl, cls, note) => {
-          const t = el('div', 'wh-std');
-          const v = el('div', 'wh-tile-v ' + cls);
-          v.append(...[].concat(valueEl));
-          t.append(el('div', 'wh-tile-k', label), v, el('div', 'wh-tile-n', note));
-          return t;
-        };
-        const s = (f, text) => mark(el('span', '', text != null ? text : r[f]), 'safety', f, w);
+        const s = (f) => m(r[f], 'safety', f, w, null, 'span');
         const n = (f) => Number(r[f]);
+        const okCls = (b) => (b ? 'is-ok' : 'is-bad');
         box.replaceChildren(
-          tile('Lost-time injuries', s('lost_time_injuries'), n('lost_time_injuries') ? 'is-bad' : 'is-ok', 'Standard: 0'),
-          tile('First aid cases', s('first_aid_cases'), n('first_aid_cases') ? 'is-bad' : 'is-ok', 'Standard: 0'),
-          tile('Forklift pre-start checks', [s('forklift_checks_done'), el('span', 'wh-of', ' / '), s('forklift_checks_required')], sd.forklift_check_pct >= 100 ? 'is-ok' : 'is-bad',
-            'Every truck checked before use'),
-          tile('PPE audit', [s('ppe_audit_pct'), '%'], n('ppe_audit_pct') >= 95 ? 'is-ok' : 'is-bad', 'Standard: 95% or more'),
-          tile('Housekeeping', [s('housekeeping_score'), el('span', 'wh-of', ' / 5')], n('housekeeping_score') >= 4 ? 'is-ok' : 'is-bad', 'Standard: 4 or more'),
-          tile('Toolbox talk', s('toolbox_talk'), r.toolbox_talk === 'Yes' ? 'is-ok' : 'is-bad', 'Held before shift start'),
-          tile('Near misses reported', s('near_misses'), '', 'Reporting is encouraged'),
-          tile('Unsafe acts observed', s('unsafe_acts'), n('unsafe_acts') >= 3 ? 'is-warn' : '', 'Coached on the spot'),
+          tile('Lost-time injuries', s('lost_time_injuries'), 'Standard: 0', null, okCls(!n('lost_time_injuries'))),
+          tile('First aid cases', s('first_aid_cases'), 'Standard: 0', null, okCls(!n('first_aid_cases'))),
+          tile('Forklift pre-start checks', [s('forklift_checks_done'), el('span', 'wh-of', ' / '), s('forklift_checks_required')], 'Every truck, every shift', null, okCls(n('forklift_checks_done') >= n('forklift_checks_required'))),
+          tile('PPE audit', [s('ppe_audit_pct'), el('span', 'wh-of', '%')], 'Standard: 95% or more', null, okCls(n('ppe_audit_pct') >= 95)),
+          tile('Housekeeping', [s('housekeeping_score'), el('span', 'wh-of', ' / 5')], 'Standard: 4 or more', null, okCls(n('housekeeping_score') >= 4)),
+          tile('Toolbox talk', s('toolbox_talk'), 'Before shift start', null, okCls(r.toolbox_talk === 'Yes')),
+          tile('Near misses reported', s('near_misses'), 'Reporting is encouraged'),
+          tile('Unsafe acts observed', s('unsafe_acts'), 'Coached on the spot', null, n('unsafe_acts') >= 3 ? 'is-warn' : ''),
         );
       }
     }
-
-    const table = $('#wh-log');
-    const tbody = table.querySelector('tbody');
-    if (failed('safety_log')) { tbody.replaceChildren(); const tr = el('tr'); const td = el('td'); td.colSpan = 7; td.append(failLine()); tr.append(td); tbody.append(tr); return; }
+    const tbody = $('#wh-log tbody');
+    if (failed('safety_log')) { const tr = el('tr'); const td = el('td'); td.colSpan = 7; td.append(el('div', 'wh-fail', 'Failed to load')); tr.append(td); tbody.replaceChildren(tr); return; }
     if (!ok('safety_log')) { tbody.replaceChildren(); return; }
     const rows = st('safety_log').data.slice().sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.id < b.id ? 1 : -1));
-    const typeCls = (t) => (t === 'Lost-time injury' || t === 'First aid' ? 'is-bad' : t === 'Near miss' || t === 'Unsafe act' || t === 'Property damage' ? 'is-warn' : 'is-neutral');
+    const typeCls = (t) => (t === 'Lost-time injury' || t === 'First aid' ? 'is-bad' : 'is-warn');
     tbody.replaceChildren(...rows.map((r) => {
       const tr = el('tr', r.date === day ? 'is-sel' : '');
-      const typeTd = el('td'); typeTd.append(el('span', 'wh-pill ' + typeCls(r.type), r.type));
-      const statTd = el('td'); statTd.append(el('span', 'wh-pill ' + (r.status === 'Open' ? 'is-warn' : 'is-neutral'), r.status));
+      const typeTd = el('td'); typeTd.append(pill(r.type, typeCls(r.type)));
+      const statTd = el('td'); statTd.append(pill(r.status, r.status === 'Open' ? 'is-warn' : 'is-neutral'));
       tr.append(el('td', '', r.id), el('td', '', r.date), el('td', '', r.area), typeTd, el('td', '', r.description), el('td', '', r.action), statTd);
       return tr;
     }));
   }
 
-  /* ---------- draw ---------- */
+  /* ================= draw ================= */
   dash.onData(() => {
     hideTip();
-    const rates = ok('kpi_rates') ? st('kpi_rates').data : [];
-    const dates = [...new Set(rates.map((r) => r.date))].sort();
+    drawTakeaway();
+    drawReceiving();
+    drawPickWarehouses();
+    drawPickFilter();
+    drawPickTable();
+
+    const dates = ok('safety') ? [...new Set(st('safety').data.map((r) => r.date))].sort() : [];
     let day = dash.params().day;
     if (!dates.includes(day)) day = dates[dates.length - 1];
-
     daySel.replaceChildren(...dates.slice().reverse().map((d) => new Option(dayFmt(parse(d)), d)));
     if (day) daySel.value = day;
-    daySel.disabled = !dates.length;
-
-    drawTakeaway(day);
-    drawSummary(day);
-    drawCards('Receiving', '#rec-cards', day);
-    drawCards('Dispatch', '#dis-cards', day);
-    drawMatrix(day, dates);
     drawReturns(day);
     drawSafety(day);
-    if (dates.length) animated = true;
   });
 
+  document.querySelectorAll('.wh-nav a').forEach((a) => a.addEventListener('click', (e) => {
+    const t = document.getElementById(a.getAttribute('href').slice(1));
+    if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth' }); dash.setLink(t.id); }
+  }));
   const named = document.getElementById(location.hash.slice(1));
   if (named) requestAnimationFrame(() => { named.scrollIntoView(); dash.setLink(named.id); });
 })();

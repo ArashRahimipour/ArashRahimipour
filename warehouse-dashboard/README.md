@@ -1,47 +1,46 @@
 # Warehouse daily ops dashboard
 
-Daily KPI and safety dashboard for receiving, dispatch, returns and safety.
-`index.html` is the dashboard page; the four CSV files in `data/` are the daily
-sheets it reads. The figures in them are **sample data** — replace them with
-your own each day.
+KPI and safety dashboard for receiving, picking, returns and safety.
+`index.html` is the dashboard page; the CSV files in `data/` are the sheets it
+reads. Receiving (VIC) and picking (all warehouses) are real figures; returns
+and safety are **sample data** until real sheets are supplied.
 
-## Daily sheets
+## Data sheets
 
-### `data/ops_daily.csv` — one row per KPI per day
+### `data/vic_receiving_week.csv` — VIC weekly receiving sheet (real data)
 
-| column | meaning |
-| --- | --- |
-| `date` | Shift date, `YYYY-MM-DD` |
-| `area` | `Receiving` or `Dispatch` |
-| `kpi_id` | Fixed id, see the KPI list below |
-| `step` | Order of the step in the area's flow |
-| `activity` / `kpi` / `unit` | Labels shown on the card |
-| `qty` | Units done that day (containers, boxes, pallets, labels, CBM) |
-| `hours` | Hours worked on that activity |
-| `crew` | People on that activity (replenishment is always 2) |
-| `target_per_hr` | Team target per hour |
+One row per day, same measures as the VIC WH weekly reporting sheet:
+containers delivered / unloaded (PO and ST), discrepancies, containers sent
+out, SKUs, pallets used, people unloading, unloading man-hours, CBM, boxes,
+unloaded on receiving date, random box checks, container detention, pallets
+left behind.
 
-Rate = `qty / hours`. The KPI is **hit** when the rate is at or above
-`target_per_hr`. Per-person rate = rate / crew.
+KPIs worked out from it:
 
-| kpi_id | Area | Activity | KPI | Sample target |
-| --- | --- | --- | --- | --- |
-| `rec_unload_cont` | Receiving | Unloading | Containers/hr | 0.6 |
-| `rec_unload_box` | Receiving | Unloading | Boxes/hr | 750 |
-| `rec_palletize` | Receiving | Palletizing | Pallets/hr | 28 |
-| `rec_label` | Receiving | Pallet labels | Labels/hr | 30 |
-| `rec_qc` | Receiving | QC | Pallets checked/hr | 30 |
-| `rec_feeder` | Receiving | Feeder | Pallets/hr | 28 |
-| `rec_putaway` | Receiving | Putaway | Pallets/hr | 26 |
-| `disp_box` | Dispatch | Dispatch | Boxes/hr | 950 |
-| `disp_cbm` | Dispatch | Dispatch | CBM/hr | 45 |
-| `disp_replen` | Dispatch | Replenishment | Pallets/hr (2 replenishers) | 20 |
+| KPI | Rule | Target |
+| --- | --- | --- |
+| Man-hours per container | unloading hours ÷ containers unloaded | 14 or less |
+| Random box checks | checks ÷ (SKUs × 3) | 100% |
+| PO & ST discrepancy accuracy | 1 − discrepancies ÷ containers unloaded | 99.5% |
+| Unloaded on receiving date | days = Yes | every day |
+| Pallets left behind / detention | days = Yes | 0 days |
 
-### `data/returns_daily.csv` — boxes returned per day by reason
+Not on the sheet yet (add rows with hours to score them): pallets fed
+(feeder), pallets put away, pallet labels printed, pallets QC'd, pallets built.
+
+### `data/picking_sep_2026.csv` — Task User Report, 1–30 Sep 2026 (real data)
+
+`warehouse, picker, boxes, bins, pickrate` (boxes per picking hour) for VIC,
+NSW, QLD and WA. MMS and Abadan system accounts are removed and pickers are
+shown by ID, not name. VIC has 20 of 23 rows (page 2 was not supplied).
+Picking hours = boxes ÷ pick rate; target 25 boxes/hr (assumed); pickers with
+fewer than 50 boxes are not scored.
+
+### `data/returns_daily.csv` (sample) — boxes returned per day by reason
 
 `date, reason, boxes`
 
-### `data/safety_daily.csv` — one row per day
+### `data/safety_daily.csv` (sample) — one row per day
 
 `date, lost_time_injuries, first_aid_cases, near_misses, unsafe_acts,
 forklift_checks_done, forklift_checks_required, ppe_audit_pct,
@@ -52,7 +51,7 @@ forklift pre-start checks done, PPE audit ≥ 95%, housekeeping ≥ 4, toolbox t
 held. Near misses and unsafe acts are tracked but not scored, so reporting is
 not discouraged.
 
-### `data/safety_log.csv` — incidents and observations
+### `data/safety_log.csv` (sample) — incidents and observations
 
 `id, date, area, type, description, action, status (Open/Closed)`
 
