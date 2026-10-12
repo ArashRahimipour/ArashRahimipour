@@ -1,0 +1,61 @@
+date,reason,boxes
+2026-09-28,Damaged in transit,17
+2026-09-28,Wrong item picked,3
+2026-09-28,Customer refused,11
+2026-09-28,Over-shipped,6
+2026-09-28,Label error,6
+2026-09-29,Damaged in transit,28
+2026-09-29,Wrong item picked,12
+2026-09-29,Customer refused,13
+2026-09-29,Over-shipped,5
+2026-09-29,Label error,3
+2026-09-30,Damaged in transit,3
+2026-09-30,Wrong item picked,9
+2026-09-30,Customer refused,5
+2026-09-30,Over-shipped,6
+2026-09-30,Label error,3
+2026-10-01,Damaged in transit,12
+2026-10-01,Wrong item picked,8
+2026-10-01,Customer refused,0
+2026-10-01,Over-shipped,2
+2026-10-01,Label error,1
+2026-10-02,Damaged in transit,2
+2026-10-02,Wrong item picked,8
+2026-10-02,Customer refused,8
+2026-10-02,Over-shipped,3
+2026-10-02,Label error,4
+2026-10-03,Damaged in transit,20
+2026-10-03,Wrong item picked,14
+2026-10-03,Customer refused,3
+2026-10-03,Over-shipped,2
+2026-10-03,Label error,2
+2026-10-05,Damaged in transit,16
+2026-10-05,Wrong item picked,11
+2026-10-05,Customer refused,6
+2026-10-05,Over-shipped,3
+2026-10-05,Label error,5
+2026-10-06,Damaged in transit,18
+2026-10-06,Wrong item picked,4
+2026-10-06,Customer refused,6
+2026-10-06,Over-shipped,5
+2026-10-06,Label error,0
+2026-10-07,Damaged in transit,18
+2026-10-07,Wrong item picked,10
+2026-10-07,Customer refused,8
+2026-10-07,Over-shipped,4
+2026-10-07,Label error,3
+2026-10-08,Damaged in transit,14
+2026-10-08,Wrong item picked,10
+2026-10-08,Customer refused,6
+2026-10-08,Over-shipped,2
+2026-10-08,Label error,6
+2026-10-09,Damaged in transit,11
+2026-10-09,Wrong item picked,7
+2026-10-09,Customer refused,6
+2026-10-09,Over-shipped,6
+2026-10-09,Label error,4
+2026-10-10,Damaged in transit,7
+2026-10-10,Wrong item picked,9
+2026-10-10,Customer refused,11
+2026-10-10,Over-shipped,7
+2026-10-10,Label error,1

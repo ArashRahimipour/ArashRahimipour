@@ -1,0 +1,8 @@
+id,date,area,type,description,action,status
+SL-041,2026-09-29,Receiving dock,Near miss,Pallet slid off forks while unloading container 3,Re-briefed crew on fork spread; added load check,Closed
+SL-042,2026-10-01,Dispatch,Unsafe act,Picker standing on pallet to reach top shelf,Toolbox talk on step ladders; ladder added to aisle 12,Closed
+SL-043,2026-10-02,Putaway aisles,Near miss,Reach truck nearly hit pedestrian at aisle 8 end,Install convex mirror at aisle 8,Closed
+SL-044,2026-10-06,Palletizing,First aid,Cut on hand from stretch-wrap cutter,Switch to safety cutters; cut gloves reissued,Closed
+SL-045,2026-10-07,Replenishment,Near miss,Unsecured top pallet layer shifted during lift,Wrap check before lifting above 3 m,Open
+SL-046,2026-10-09,Receiving dock,Property damage,Dock leveller lip damaged by pallet jack,Maintenance ticket raised; lane 2 tagged out,Open
+SL-047,2026-10-10,Dispatch,Unsafe act,Forklift pre-start check skipped on FL-03,Driver re-trained; supervisor signs checks daily,Open
