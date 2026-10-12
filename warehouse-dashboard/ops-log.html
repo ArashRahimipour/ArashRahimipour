@@ -1,4 +1,4 @@
-<title>Daily Ops Log</title>
+<title>Warehouse Ops</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -115,19 +115,118 @@ table.pk .x { border: 0; background: none; color: var(--muted); cursor: pointer;
 .paste { display: grid; gap: 8px; }
 .paste textarea { width: 100%; min-height: 90px; font-family: var(--mono); font-size: .8rem; background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
 
+.tabs { display: flex; gap: 4px; }
+.tabs button { border: 0; background: none; padding: 8px 14px; border-radius: var(--r); cursor: pointer; font-family: var(--display); font-weight: 600; font-size: 1.02rem; letter-spacing: .03em; color: var(--muted); }
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { color: var(--ink); background: var(--field); box-shadow: inset 0 -3px 0 var(--accent); }
+.page { max-width: 1280px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 48px; display: grid; gap: 20px; }
+.wrap.page { max-width: 1280px; }
+.page[hidden] { display: none !important; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.toolbar.span { grid-column: 1 / -1; }
+.sel { background: var(--field); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 8px; }
+.tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 4px; align-content: start; }
+.tile .k { font-size: .82rem; color: var(--muted); }
+.tile .v { font-family: var(--display); font-size: 2rem; font-weight: 600; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.tile .v small { font-family: var(--body); font-size: .9rem; font-weight: 400; color: var(--muted); }
+.tile .t { font-size: .8rem; color: var(--muted); }
+.tile.clickable { cursor: pointer; }
+.tile.clickable[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 3px 0 var(--accent); }
+.c-ok { color: var(--ok); } .c-bad { color: var(--bad); } .c-warn { color: var(--warn); }
+.board { display: grid; gap: 4px; font-size: .8rem; min-width: min-content; }
+.board .lbl { font-family: var(--display); font-weight: 600; letter-spacing: .04em; display: flex; align-items: center; padding-right: 8px; }
+.board .dh { color: var(--muted); text-align: center; line-height: 1.2; padding-bottom: 4px; }
+.board .cell { border: 0; border-radius: 6px; min-height: 40px; min-width: 52px; font-family: var(--mono); font-size: .8rem; cursor: pointer; color: var(--ink); background: transparent; border: 1px dashed var(--line); }
+.board .cell.g { background: var(--ok-bg); border-color: transparent; }
+.board .cell.y { background: var(--warn-bg); border-color: transparent; }
+.board .cell.r { background: var(--bad-bg); border-color: transparent; }
+.board .cell .sf { display: block; font-size: .68rem; color: var(--muted); font-family: var(--body); }
+.grid-tbl, .list-tbl { border-collapse: collapse; width: 100%; font-size: .85rem; }
+.grid-tbl th, .grid-tbl td, .list-tbl th, .list-tbl td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.grid-tbl th, .list-tbl th { font-weight: 500; color: var(--muted); font-size: .78rem; position: sticky; top: 0; background: var(--panel); }
+.grid-tbl td.v, .list-tbl td.r, .list-tbl th.r { text-align: right; font-family: var(--mono); }
+.grid-tbl td.hit { background: var(--ok-bg); } .grid-tbl td.miss { background: var(--bad-bg); }
+.grid-tbl td:first-child { font-weight: 500; }
+.pk-scroll { max-height: 34rem; overflow: auto; }
+.th { border: 0; background: none; padding: 0; cursor: pointer; color: inherit; font: inherit; }
+.list-tbl tr.low td { color: var(--muted); }
+.rate { display: grid; grid-template-columns: 3.4rem 120px; align-items: center; gap: 8px; font-family: var(--mono); }
+.rate-bar { position: relative; height: 8px; border-radius: 999px; background: var(--line); }
+.rate-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; }
+.rate-bar u { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+.mono-ta { font-family: var(--mono); font-size: .8rem; min-height: 110px; }
 .confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 @media (prefers-reduced-motion: no-preference) { .kpi { transition: background-color .2s ease; } }
 </style>
 
 <header class="bar">
   <div class="bar-in">
-    <div class="brand"><span class="stripe" aria-hidden="true"></span><div><h1>Daily Ops Log</h1><p class="muted">One saved sheet per warehouse per day</p></div></div>
-    <div class="ctl"><label for="date">Date</label><input id="date" type="date" min="2020-01-01" max="2099-12-31"></div>
-    <div class="ctl"><span class="muted" id="wh-label">Warehouse</span><div class="seg" id="wh" role="group" aria-labelledby="wh-label"></div></div>
+    <div class="brand"><span class="stripe" aria-hidden="true"></span><div><h1>Warehouse Ops</h1><p class="muted">Receiving, dispatch, picking, returns and safety · VIC · NSW · QLD · WA</p></div></div>
+    <nav class="tabs" role="tablist" aria-label="Views">
+      <button type="button" role="tab" id="tabbtn-overview" data-tab="overview">Overview</button>
+      <button type="button" role="tab" id="tabbtn-picking" data-tab="picking">Picking</button>
+      <button type="button" role="tab" id="tabbtn-entry" data-tab="entry">Enter day</button>
+    </nav>
   </div>
 </header>
 
-<div class="wrap">
+<!-- ================= OVERVIEW ================= -->
+<div class="page" id="tab-overview" role="tabpanel" aria-labelledby="tabbtn-overview">
+  <section class="toolbar">
+    <div class="ctl"><label for="ov-range">Period</label>
+      <select id="ov-range" class="sel"><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="month">This month</option><option value="all">All saved days</option></select></div>
+    <div class="ctl"><span class="muted" id="ov-wh-label">Warehouse</span><div class="seg" id="ov-wh" role="group" aria-labelledby="ov-wh-label"></div></div>
+  </section>
+  <div class="tiles" id="ov-tiles"></div>
+  <section class="card">
+    <div><h2>Did each warehouse hit its KPIs?</h2><p class="muted">Operations KPIs hit per saved day. Click a day to open its sheet.</p></div>
+    <div class="tbl-wrap"><div class="board" id="ov-board"></div></div>
+  </section>
+  <section class="card">
+    <div><h2 id="ov-detail-h">Each KPI by day</h2><p class="muted" id="ov-detail-sub">Pick one warehouse above to see every KPI day by day.</p></div>
+    <div class="tbl-wrap"><table class="grid-tbl" id="ov-detail"></table></div>
+  </section>
+</div>
+
+<!-- ================= PICKING ================= -->
+<div class="page" id="tab-picking" role="tabpanel" aria-labelledby="tabbtn-picking" hidden>
+  <section class="toolbar">
+    <div class="ctl"><label for="pk-month">Month</label><select id="pk-month" class="sel"></select></div>
+    <div class="ctl"><span class="muted" id="pk-wh-label">Warehouse</span><div class="seg" id="pk-wh" role="group" aria-labelledby="pk-wh-label"></div></div>
+  </section>
+  <div class="tiles" id="pk-tiles"></div>
+  <section class="card">
+    <div><h2>Pickers</h2><p class="muted" id="pk-sub">Boxes per picking hour from the Task User Report. Pickers under the minimum boxes aren't scored.</p></div>
+    <div class="tbl-wrap pk-scroll"><table class="list-tbl" id="pk-table"><thead><tr>
+      <th><button type="button" class="th" data-sort="name">Picker</button></th>
+      <th><button type="button" class="th" data-sort="warehouse">Warehouse</button></th>
+      <th class="r"><button type="button" class="th" data-sort="boxes">Boxes</button></th>
+      <th class="r"><button type="button" class="th" data-sort="bins">Bins</button></th>
+      <th class="r"><button type="button" class="th" data-sort="hours">Hours</button></th>
+      <th><button type="button" class="th" data-sort="pickrate">Boxes/hr</button></th>
+      <th><button type="button" class="th" data-sort="result">Result</button></th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+  <details class="sec" id="pk-add">
+    <summary><h2>Add a monthly report</h2><span class="muted">Replaces that month and warehouse if it exists</span></summary>
+    <div class="sec-body">
+      <div class="grid">
+        <div class="f"><label for="pk-new-month">Month</label><input id="pk-new-month" type="month"></div>
+        <div class="f"><label for="pk-new-wh">Warehouse</label><select id="pk-new-wh"></select></div>
+      </div>
+      <div class="f"><label for="pk-new-paste">Paste the rows from the Task User Report (name, boxes, bin, pickrate). MMS and Abadan are skipped.</label><textarea id="pk-new-paste" class="mono-ta"></textarea></div>
+      <div class="row-actions"><button class="btn primary" type="button" id="pk-new-save">Save report</button><span class="state" id="pk-new-msg"></span></div>
+    </div>
+  </details>
+</div>
+
+<!-- ================= ENTER DAY ================= -->
+<div class="wrap page" id="tab-entry" role="tabpanel" aria-labelledby="tabbtn-entry" hidden>
+  <section class="toolbar span">
+    <div class="ctl"><label for="date">Date</label><input id="date" type="date" min="2020-01-01" max="2099-12-31"></div>
+    <div class="ctl"><span class="muted" id="wh-label">Warehouse</span><div class="seg" id="wh" role="group" aria-labelledby="wh-label"></div></div>
+  </section>
   <aside class="card ledger" aria-labelledby="ledger-h">
     <div><h2 id="ledger-h">Saved days</h2><p class="muted" id="ledger-sub">Every saved day, newest first.</p></div>
     <div class="seg" id="ledger-filter" role="group" aria-label="Show warehouse"></div>
@@ -655,12 +754,235 @@ table.pk .x { border: 0; background: none; color: var(--muted); cursor: pointer;
     catch (e) { if (e && e.code !== 'declined') { lastMsg = { kind: 'err', text: 'Couldn’t prepare the download.' }; renderStatus(); } }
   });
 
+  /* ---------- tabs ---------- */
+  const TABS = ['overview', 'picking', 'entry'];
+  let tab = 'overview';
+  try { const s = localStorage.getItem('opslog-tab'); if (TABS.includes(s)) tab = s; } catch (e) {}
+  if (TABS.includes(location.hash.slice(1))) tab = location.hash.slice(1);
+  function showTab(t) {
+    tab = t;
+    for (const x of TABS) {
+      $('#tab-' + x).hidden = x !== t;
+      const b = $('#tabbtn-' + x); b.setAttribute('aria-selected', String(x === t)); b.tabIndex = x === t ? 0 : -1;
+    }
+    try { localStorage.setItem('opslog-tab', t); } catch (e) {}
+    renderAll();
+  }
+  for (const b of document.querySelectorAll('.tabs button')) {
+    b.addEventListener('click', () => showTab(b.dataset.tab));
+    b.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      const i = (TABS.indexOf(tab) + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length;
+      showTab(TABS[i]); $('#tabbtn-' + TABS[i]).focus();
+    });
+  }
+  function openDay(date, wh) { dateIn.value = date; switchTo(date, wh); showTab('entry'); window.scrollTo(0, 0); }
+
+  const segInto = (box, items, get, set) => {
+    box.replaceChildren(...items.map((w) => {
+      const b = el('button', '', w); b.type = 'button';
+      b.setAttribute('aria-pressed', String(get() === w));
+      b.addEventListener('click', () => { set(w); renderAll(); });
+      return b;
+    }));
+  };
+  const tileEl = (k, v, unit, t, cls) => {
+    const d = el('div', 'tile');
+    const vv = el('div', 'v' + (cls ? ' ' + cls : ''), v);
+    if (unit) vv.append(el('small', '', ' ' + unit));
+    d.append(el('div', 'k', k), vv, el('div', 't', t || ''));
+    return d;
+  };
+
+  /* ---------- overview ---------- */
+  let ovRange = '7', ovWh = 'All';
+  const ovRangeSel = $('#ov-range');
+  ovRangeSel.addEventListener('change', () => { ovRange = ovRangeSel.value; renderAll(); });
+  function inRange(date) {
+    const today = todayIso();
+    if (ovRange === 'all') return true;
+    if (ovRange === 'month') return date.slice(0, 7) === today.slice(0, 7);
+    const d0 = new Date(today + 'T00:00:00'); d0.setDate(d0.getDate() - (Number(ovRange) - 1));
+    const from = new Date(d0.getTime() - d0.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    return date >= from && date <= today;
+  }
+  function renderOverview() {
+    segInto($('#ov-wh'), ['All', ...WAREHOUSES], () => ovWh, (w) => { ovWh = w; });
+    const tiles = $('#ov-tiles'), board = $('#ov-board'), detail = $('#ov-detail');
+    if (!db || !loaded) {
+      tiles.replaceChildren(el('div', 'empty', db === null && loaded ? 'Sign in to claude.ai to see saved days.' : 'Loading saved days…'));
+      board.replaceChildren(); detail.replaceChildren(); return;
+    }
+    const recs = [...days.values()].map((x) => x.data).filter((d) => d && inRange(d.date) && (ovWh === 'All' || d.warehouse === ovWh));
+    if (!recs.length) {
+      const e = el('div', 'empty');
+      const b = el('button', 'btn primary', 'Enter a day'); b.type = 'button'; b.addEventListener('click', () => showTab('entry'));
+      e.append(el('p', '', 'No saved days in this period' + (ovWh === 'All' ? '' : ' for ' + ovWh) + ' yet. Each day you save under Enter day shows up here.'), b);
+      e.style.display = 'grid'; e.style.gap = '10px'; e.style.justifyItems = 'start';
+      tiles.replaceChildren(e); board.replaceChildren(); detail.replaceChildren();
+      $('#ov-detail-sub').textContent = 'Pick one warehouse above to see every KPI day by day.';
+      return;
+    }
+    let hit = 0, tot = 0, sMet = 0, sTot = 0, ret = 0, hrs = 0, cont = 0, lti = 0, fa = 0, nm = 0;
+    const scores = new Map();
+    for (const d of recs) {
+      const sc = scoreDay(d, targets); scores.set(d.date + '_' + d.warehouse, sc);
+      hit += sc.opsHit; tot += sc.opsTotal; sMet += sc.safetyMet; sTot += sc.safetyTotal; ret += sc.returned || 0;
+      const R = d.receiving || {}; const c = (n(R.containers_unloaded_po) || 0) + (n(R.containers_unloaded_st) || 0);
+      if (c && n(R.unloading_hours) != null) { hrs += n(R.unloading_hours); cont += c; }
+      const S = d.safety || {}; lti += n(S.lost_time_injuries) || 0; fa += n(S.first_aid_cases) || 0; nm += n(S.near_misses) || 0;
+    }
+    const pct = (a, b) => (b ? Math.round((a / b) * 100) : null);
+    const kp = pct(hit, tot), sp = pct(sMet, sTot), hpc = cont ? r2(hrs / cont) : null;
+    tiles.replaceChildren(
+      tileEl('Operations KPIs hit', kp == null ? '—' : kp + '%', '', hit + ' of ' + tot + ' across ' + recs.length + ' saved days', kp == null ? '' : kp >= 90 ? 'c-ok' : kp >= 70 ? 'c-warn' : 'c-bad'),
+      tileEl('Unloading man-hours per container', hpc == null ? '—' : fmt(hpc), 'h', 'Target ' + targets.hrs_per_container + ' h or less · ' + cont + ' containers', hpc == null ? '' : hpc <= targets.hrs_per_container ? 'c-ok' : 'c-bad'),
+      tileEl('Safety standards met', sp == null ? '—' : sp + '%', '', sMet + ' of ' + sTot + ' checks', sp == null ? '' : sp === 100 ? 'c-ok' : 'c-bad'),
+      tileEl('Injuries', fmt(lti + fa), '', lti + ' lost-time · ' + fa + ' first aid · ' + nm + ' near misses', lti + fa ? 'c-bad' : 'c-ok'),
+      tileEl('Boxes returned', fmt(ret), '', 'All reasons'),
+    );
+    // board
+    const dates = [...new Set(recs.map((d) => d.date))].sort().slice(-31);
+    const whs = ovWh === 'All' ? WAREHOUSES : [ovWh];
+    board.style.gridTemplateColumns = `5rem repeat(${dates.length}, minmax(52px, 1fr))`;
+    const kids = [el('div', '')];
+    for (const d of dates) { const h = el('div', 'dh'); const dt = new Date(d + 'T00:00:00'); h.append(el('div', '', dt.toLocaleDateString('en-AU', { weekday: 'short' })), el('div', '', dt.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }))); kids.push(h); }
+    for (const w of whs) {
+      kids.push(el('div', 'lbl', w));
+      for (const d of dates) {
+        const sc = scores.get(d + '_' + w);
+        const b = el('button', 'cell'); b.type = 'button';
+        if (sc && sc.opsTotal) {
+          const p = sc.opsHit / sc.opsTotal;
+          b.classList.add(p >= 0.9 ? 'g' : p >= 0.7 ? 'y' : 'r');
+          b.textContent = sc.opsHit + '/' + sc.opsTotal;
+          if (sc.safetyTotal) b.append(el('span', 'sf', 'safety ' + sc.safetyMet + '/' + sc.safetyTotal));
+          b.setAttribute('aria-label', w + ' ' + shortDate(d) + ': ' + sc.opsHit + ' of ' + sc.opsTotal + ' KPIs hit. Open sheet.');
+        } else if (sc) { b.textContent = '·'; b.setAttribute('aria-label', w + ' ' + shortDate(d) + ': saved, no KPIs. Open sheet.'); }
+        else { b.textContent = ''; b.setAttribute('aria-label', w + ' ' + shortDate(d) + ': nothing saved. Enter this day.'); }
+        b.addEventListener('click', () => openDay(d, w));
+        kids.push(b);
+      }
+    }
+    board.replaceChildren(...kids);
+    // detail
+    if (ovWh === 'All') { detail.replaceChildren(); $('#ov-detail-h').textContent = 'Each KPI by day'; $('#ov-detail-sub').textContent = 'Pick one warehouse above to see every KPI day by day.'; return; }
+    $('#ov-detail-h').textContent = ovWh + ' · each KPI by day';
+    $('#ov-detail-sub').textContent = 'Green met target, red missed. Blank means it wasn’t entered that day.';
+    const wdates = dates.filter((d) => scores.has(d + '_' + ovWh));
+    const names = []; const vals = new Map();
+    for (const d of wdates) for (const k of scores.get(d + '_' + ovWh).list) {
+      const key = k.area + ' · ' + k.name;
+      if (!names.includes(key)) names.push(key);
+      vals.set(key + '|' + d, k);
+    }
+    const thead = el('thead'); const hr = el('tr'); hr.append(el('th', '', 'KPI'));
+    for (const d of wdates) hr.append(el('th', '', new Date(d + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })));
+    thead.append(hr);
+    const tbody = el('tbody');
+    for (const name of names) {
+      const tr = el('tr'); tr.append(el('td', '', name));
+      for (const d of wdates) {
+        const k = vals.get(name + '|' + d);
+        const td = el('td', 'v' + (k ? (k.hit ? ' hit' : ' miss') : ''), k ? (typeof k.value === 'number' ? fmt(k.value) : k.value) : '');
+        if (k) td.title = 'Target ' + k.targetText;
+        tr.append(td);
+      }
+      tbody.append(tr);
+    }
+    detail.replaceChildren(thead, tbody);
+  }
+
+  /* ---------- picking reports ---------- */
+  let reports = new Map(); // key month_wh -> data
+  let pkMonth = null, pkWh = 'All', pkSort = 'pickrate', pkDir = -1;
+  const pkMonthSel = $('#pk-month');
+  pkMonthSel.addEventListener('change', () => { pkMonth = pkMonthSel.value; renderAll(); });
+  for (const th of document.querySelectorAll('#pk-table .th')) th.addEventListener('click', () => {
+    const k = th.dataset.sort;
+    if (k === pkSort) pkDir = -pkDir; else { pkSort = k; pkDir = ['name', 'warehouse', 'result'].includes(k) ? 1 : -1; }
+    renderPicking();
+  });
+  const monthName = (m) => new Date(m + '-01T00:00:00').toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
+  function renderPicking() {
+    segInto($('#pk-wh'), ['All', ...WAREHOUSES], () => pkWh, (w) => { pkWh = w; });
+    const months = [...new Set([...reports.values()].map((r) => r.month))].sort().reverse();
+    if (!months.includes(pkMonth)) pkMonth = months[0] || null;
+    pkMonthSel.replaceChildren(...months.map((m) => new Option(monthName(m), m)));
+    if (pkMonth) pkMonthSel.value = pkMonth;
+    pkMonthSel.disabled = !months.length;
+    const tiles = $('#pk-tiles'), tbody = $('#pk-table tbody');
+    if (!pkMonth) {
+      tiles.replaceChildren(el('div', 'empty', loaded ? 'No picking reports saved yet. Open “Add a monthly report” below and paste the Task User Report.' : 'Loading picking reports…'));
+      tbody.replaceChildren(); return;
+    }
+    const T = targets.pick_rate, MIN = targets.pick_min_boxes;
+    const people = [];
+    for (const r of reports.values()) if (r.month === pkMonth) for (const p of r.pickers || []) {
+      const boxes = n(p.boxes), rate = n(p.pickrate);
+      if (!p.name || boxes == null || !rate) continue;
+      people.push({ name: p.name, warehouse: r.warehouse, boxes, bins: n(p.bins), pickrate: rate, hours: r2(boxes / rate),
+        result: boxes < MIN ? 'Too few boxes' : rate >= T ? 'Hit' : 'Missed' });
+    }
+    tiles.replaceChildren(...['All', ...WAREHOUSES].map((w) => {
+      const ps = people.filter((p) => w === 'All' || p.warehouse === w);
+      const boxes = ps.reduce((s, p) => s + p.boxes, 0), hours = ps.reduce((s, p) => s + p.boxes / p.pickrate, 0);
+      const rate = hours ? r2(boxes / hours) : null;
+      const scored = ps.filter((p) => p.boxes >= MIN), hitN = scored.filter((p) => p.pickrate >= T).length;
+      const t = tileEl(w === 'All' ? 'All warehouses · boxes/hr' : w + ' · boxes/hr', rate == null ? '—' : fmt(rate), '',
+        ps.length ? hitN + ' of ' + scored.length + ' pickers on target · ' + fmt(boxes) + ' boxes' : 'No report for this month', rate == null ? '' : rate >= T ? 'c-ok' : 'c-bad');
+      t.classList.add('clickable'); t.tabIndex = 0; t.setAttribute('role', 'button'); t.setAttribute('aria-pressed', String(pkWh === w));
+      const go = () => { pkWh = w; renderAll(); };
+      t.addEventListener('click', go); t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+      return t;
+    }));
+    $('#pk-sub').textContent = monthName(pkMonth) + '. Boxes per picking hour from the Task User Report; a warehouse’s rate is total boxes ÷ total hours. Target ' + T + ' boxes/hr; pickers under ' + MIN + ' boxes aren’t scored.';
+    const rows = people.filter((p) => pkWh === 'All' || p.warehouse === pkWh);
+    const order = { Hit: 0, Missed: 1, 'Too few boxes': 2 };
+    rows.sort((a, b) => { const av = pkSort === 'result' ? order[a.result] : a[pkSort], bv = pkSort === 'result' ? order[b.result] : b[pkSort]; return (av < bv ? -1 : av > bv ? 1 : 0) * pkDir; });
+    for (const th of document.querySelectorAll('#pk-table th')) { const k = th.querySelector('.th').dataset.sort; if (k === pkSort) th.setAttribute('aria-sort', pkDir > 0 ? 'ascending' : 'descending'); else th.removeAttribute('aria-sort'); }
+    const maxR = Math.min(80, Math.max(T * 1.6, ...rows.map((p) => p.pickrate)));
+    tbody.replaceChildren(...rows.map((p) => {
+      const tr = el('tr', p.result === 'Too few boxes' ? 'low' : '');
+      const rt = el('td'); const w = el('div', 'rate'); const bar = el('div', 'rate-bar'); const f = el('i'); const u = el('u');
+      f.style.width = Math.min(100, (p.pickrate / maxR) * 100) + '%';
+      f.style.background = p.result === 'Hit' ? 'var(--ok)' : p.result === 'Missed' ? 'var(--bad)' : 'var(--muted)';
+      u.style.left = (T / maxR) * 100 + '%';
+      bar.append(f, u); w.append(el('span', '', fmt(p.pickrate)), bar); rt.append(w);
+      const res = el('td'); res.append(el('span', 'pill ' + (p.result === 'Hit' ? 'hit' : p.result === 'Missed' ? 'miss' : 'na'), p.result));
+      tr.append(el('td', '', p.name), el('td', '', p.warehouse), el('td', 'r', fmt(p.boxes)), el('td', 'r', fmt(p.bins)), el('td', 'r', fmt(p.hours)), rt, res);
+      return tr;
+    }));
+    if (!rows.length) { const tr = el('tr'); const td = el('td', 'muted', 'No pickers for ' + pkWh + ' this month.'); td.colSpan = 7; tr.append(td); tbody.append(tr); }
+  }
+  const pkNewWh = $('#pk-new-wh');
+  for (const w of WAREHOUSES) pkNewWh.append(new Option(w, w));
+  $('#pk-new-month').value = todayIso().slice(0, 7);
+  $('#pk-new-save').addEventListener('click', async () => {
+    const msg = $('#pk-new-msg');
+    const month = $('#pk-new-month').value, wh = pkNewWh.value;
+    if (!/^\d{4}-\d{2}$/.test(month)) { msg.textContent = 'Choose a month first.'; return; }
+    const res = parsePaste($('#pk-new-paste').value);
+    if (!res.rows.length) { msg.textContent = 'No rows found. Each line needs a name followed by boxes, bin and pick rate.'; return; }
+    if (!db) { msg.textContent = 'Sign in to claude.ai to save reports.'; return; }
+    const body = { month, warehouse: wh, pickers: res.rows, savedAt: Date.now() };
+    try { const uid = user ? await user.id() : null; if (uid) body.savedBy = uid; } catch (e) {}
+    try {
+      await db.collection('picking').doc(month + '_' + wh).set(body);
+      $('#pk-new-paste').value = '';
+      msg.textContent = 'Saved ' + res.rows.length + ' pickers for ' + wh + ', ' + monthName(month) + (res.skipped ? ' (skipped ' + res.skipped + ' MMS/Abadan rows)' : '') + '.';
+      pkMonth = month; pkWh = wh; renderAll();
+    } catch (e) { msg.textContent = 'Couldn’t save. Check you can edit this page.'; }
+  });
+
   /* ---------- boot ---------- */
+  const baseRenderAll = renderAll;
+  renderAll = function () { baseRenderAll(); if (tab === 'overview') renderOverview(); if (tab === 'picking') renderPicking(); };
   loadWorking();
-  renderAll();
+  showTab(tab);
 
   (async () => {
-    if (!window.claude || !window.claude.use) { renderAll(); return; }
+    if (!window.claude || !window.claude.use) { loaded = true; renderAll(); return; }
     const [d, u, dl] = await Promise.all([window.claude.use('db'), window.claude.use('user'), window.claude.use('downloads')]);
     db = d; user = u; downloads = dl;
     if (!db) { loaded = true; renderAll(); return; }
@@ -679,6 +1001,10 @@ table.pk .x { border: 0; background: none; color: var(--muted); cursor: pointer;
       loaded = true;
       renderAll();
     }, () => { lastMsg = { kind: 'err', text: 'Saved days couldn’t load. Refresh the page to try again.' }; renderStatus(); });
+    db.collection('picking').limit(500).onSnapshot((snap) => {
+      reports = new Map(snap.docs.filter((x) => x.exists).map((x) => [x.id, x.data()]));
+      renderAll();
+    }, () => {});
   })();
 })();
 </script>
