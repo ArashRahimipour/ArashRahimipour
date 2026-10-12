@@ -1,0 +1,684 @@
+<title>Daily Ops Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky shift bar (date + warehouse) over a two-column floor: saved-days ledger left, the day's sheet right; stacks on phones. */
+:root {
+  --bg: #f3f4f1; --panel: #ffffff; --ink: #1d2226; --muted: #5d666d; --line: #d9dcd6;
+  --accent: #e2a400; --accent-ink: #2a2100; --ok: #1e7a4a; --ok-bg: #e2f2e8; --bad: #b8322a; --bad-bg: #fbe6e3;
+  --warn: #8a5a00; --warn-bg: #fdf1d2; --field: #fbfbfa; --focus: #1d2226;
+  --display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15181a; --panel: #1e2225; --ink: #e8eae6; --muted: #9aa3a9; --line: #343a3e;
+  --accent: #f0b72a; --accent-ink: #1a1400; --ok: #5cc98d; --ok-bg: #173226; --bad: #f08a80; --bad-bg: #3a1d1a;
+  --warn: #f0c060; --warn-bg: #352a10; --field: #181b1d; --focus: #e8eae6; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #15181a; --panel: #1e2225; --ink: #e8eae6; --muted: #9aa3a9; --line: #343a3e;
+  --accent: #f0b72a; --accent-ink: #1a1400; --ok: #5cc98d; --ok-bg: #173226; --bad: #f08a80; --bad-bg: #3a1d1a;
+  --warn: #f0c060; --warn-bg: #352a10; --field: #181b1d; --focus: #e8eae6; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 14px; line-height: 1.45; }
+h1, h2, h3 { margin: 0; font-family: var(--display); font-weight: 600; text-wrap: balance; letter-spacing: .01em; }
+h1 { font-size: 1.75rem; font-weight: 700; }
+h2 { font-size: 1.25rem; }
+h3 { font-size: 1.05rem; }
+p { margin: 0; }
+.muted { color: var(--muted); font-size: .85rem; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); border-bottom: 1px solid var(--line); }
+.bar-in { max-width: 1280px; margin: 0 auto; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+.stripe { width: 28px; height: 28px; border-radius: 6px; background: repeating-linear-gradient(-45deg, var(--accent) 0 6px, var(--ink) 6px 12px); flex: none; }
+.ctl { display: flex; align-items: center; gap: 8px; }
+.ctl label { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.ctl input[type=date] { background: var(--field); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 8px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.seg button { border: 0; background: var(--field); padding: 6px 12px; cursor: pointer; font-family: var(--display); font-weight: 600; letter-spacing: .04em; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+.wrap { max-width: 1280px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 48px; display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 980px) { .wrap { grid-template-columns: 300px minmax(0, 1fr); align-items: start; } .ledger { position: sticky; top: 84px; } }
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.ledger { max-height: calc(100vh - 110px); overflow: auto; }
+.ledger-list { display: grid; gap: 6px; }
+.day-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; text-align: left; width: 100%; background: var(--field); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; cursor: pointer; }
+.day-row:hover { border-color: var(--muted); }
+.day-row[aria-current="true"] { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.day-row .d { font-weight: 600; }
+.day-row .s { grid-column: 1 / -1; font-size: .8rem; color: var(--muted); }
+.tag { font-family: var(--display); font-weight: 600; font-size: .8rem; letter-spacing: .05em; padding: 1px 7px; border-radius: 4px; background: var(--ink); color: var(--panel); align-self: center; }
+.empty { border: 1px dashed var(--line); border-radius: var(--r); padding: 14px; color: var(--muted); font-size: .9rem; }
+
+.main { display: grid; gap: 20px; min-width: 0; }
+.status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.status h2 { margin-right: auto; }
+.state { font-size: .85rem; color: var(--muted); }
+.state.dirty { color: var(--warn); }
+.btn { border: 1px solid var(--line); background: var(--field); border-radius: var(--r); padding: 7px 14px; cursor: pointer; font-weight: 500; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.danger { color: var(--bad); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.notice { border-radius: var(--r); padding: 10px 12px; font-size: .9rem; background: var(--warn-bg); color: var(--warn); display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.notice.err { background: var(--bad-bg); color: var(--bad); }
+.notice.ok { background: var(--ok-bg); color: var(--ok); }
+
+.kpis { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); }
+.kpi { border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; display: grid; gap: 2px; background: var(--field); }
+.kpi .k { font-size: .8rem; color: var(--muted); }
+.kpi .v { font-family: var(--mono); font-size: 1.2rem; font-weight: 500; }
+.kpi .t { font-size: .78rem; color: var(--muted); }
+.kpi.hit { background: var(--ok-bg); border-color: transparent; }
+.kpi.miss { background: var(--bad-bg); border-color: transparent; }
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: .75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; width: fit-content; }
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill.hit { color: var(--ok); background: var(--ok-bg); }
+.pill.miss { color: var(--bad); background: var(--bad-bg); }
+.pill.na { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+.kpi-sum { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: .95rem; }
+.kpi-sum b { font-family: var(--mono); font-weight: 500; }
+
+details.sec { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); }
+details.sec > summary { list-style: none; cursor: pointer; padding: 14px 16px; display: flex; align-items: center; gap: 10px; }
+details.sec > summary::-webkit-details-marker { display: none; }
+details.sec > summary::before { content: "+"; font-family: var(--mono); width: 1ch; color: var(--muted); }
+details.sec[open] > summary::before { content: "–"; }
+details.sec > summary .muted { margin-left: auto; }
+.sec-body { padding: 0 16px 16px; display: grid; gap: 14px; }
+.grid { display: grid; gap: 10px 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); }
+.sub { font-family: var(--display); font-weight: 600; font-size: .85rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
+.f { display: grid; gap: 4px; }
+.f label { font-size: .82rem; color: var(--muted); }
+.f input, .f select, .f textarea { width: 100%; background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; }
+.f input[type=number] { font-family: var(--mono); }
+.f textarea { min-height: 70px; resize: vertical; }
+
+.tbl-wrap { overflow-x: auto; }
+table.pk { width: 100%; border-collapse: collapse; min-width: 560px; }
+table.pk th { text-align: left; font-size: .78rem; color: var(--muted); font-weight: 500; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+table.pk td { padding: 4px 6px; border-bottom: 1px solid var(--line); }
+table.pk input { width: 100%; background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; }
+table.pk input[type=number] { font-family: var(--mono); text-align: right; }
+table.pk .x { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 4px 8px; }
+.row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.paste { display: grid; gap: 8px; }
+.paste textarea { width: 100%; min-height: 90px; font-family: var(--mono); font-size: .8rem; background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+
+.confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+@media (prefers-reduced-motion: no-preference) { .kpi { transition: background-color .2s ease; } }
+</style>
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="brand"><span class="stripe" aria-hidden="true"></span><div><h1>Daily Ops Log</h1><p class="muted">One saved sheet per warehouse per day</p></div></div>
+    <div class="ctl"><label for="date">Date</label><input id="date" type="date" min="2020-01-01" max="2099-12-31"></div>
+    <div class="ctl"><span class="muted" id="wh-label">Warehouse</span><div class="seg" id="wh" role="group" aria-labelledby="wh-label"></div></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <aside class="card ledger" aria-labelledby="ledger-h">
+    <div><h2 id="ledger-h">Saved days</h2><p class="muted" id="ledger-sub">Every saved day, newest first.</p></div>
+    <div class="seg" id="ledger-filter" role="group" aria-label="Show warehouse"></div>
+    <div class="ledger-list" id="ledger"><div class="empty">Loading saved days…</div></div>
+  </aside>
+
+  <main class="main">
+    <section class="card" aria-labelledby="day-h">
+      <div class="status">
+        <h2 id="day-h">—</h2>
+        <span class="state" id="state"></span>
+        <button class="btn" id="export" type="button" hidden>Download CSV</button>
+        <button class="btn primary" id="save" type="button">Save day</button>
+      </div>
+      <div id="notices"></div>
+      <div class="kpi-sum" id="kpi-sum"></div>
+      <div class="kpis" id="kpis"></div>
+    </section>
+
+    <div id="form"></div>
+
+    <section class="card" aria-labelledby="danger-h" id="danger" hidden>
+      <h3 id="danger-h">Remove this day</h3>
+      <div class="confirm" id="del-area"><button class="btn danger" id="del" type="button">Delete saved day…</button></div>
+    </section>
+
+    <details class="sec" id="targets-sec">
+      <summary><h2>Targets</h2><span class="muted">Shared by every warehouse</span></summary>
+      <div class="sec-body">
+        <p class="muted">Change a target and press Save targets. Every saved day is re-scored against the targets shown here.</p>
+        <div class="grid" id="targets"></div>
+        <div class="row-actions"><button class="btn" id="save-targets" type="button">Save targets</button><span class="state" id="targets-state"></span></div>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script>
+(() => {
+  /* ---------- schema ---------- */
+  const WAREHOUSES = ['VIC', 'NSW', 'QLD', 'WA'];
+  const YN = ['', 'Yes', 'No'];
+  const SECTIONS = [
+    { id: 'receiving', title: 'Receiving', groups: [
+      { title: 'Containers', fields: [
+        ['containers_delivered_po', 'Containers delivered (PO)'], ['containers_unloaded_po', 'Containers unloaded (PO)'],
+        ['containers_received_st', 'Containers received (ST)'], ['containers_unloaded_st', 'Containers unloaded (ST)'],
+        ['discrepancies', 'Discrepancies found'], ['containers_sent_out', 'Containers sent out'],
+        ['unloaded_same_day', 'Unloaded on receiving date', YN], ['container_detention', 'Container detention', YN],
+        ['pallets_left_behind', 'Pallets left behind', YN] ] },
+      { title: 'Unloading', fields: [
+        ['people_unloading', 'People unloading'], ['unloading_hours', 'Unloading man-hours'], ['pallets_used', 'Pallets used to unload'],
+        ['skus_received', 'SKUs received'], ['boxes_received', 'Boxes received'], ['cbm_received', 'CBM received'],
+        ['random_box_checks', 'Random box checks done'] ] },
+      { title: 'After unloading', fields: [
+        ['palletized_pallets', 'Pallets built (palletizing)'], ['palletizing_hours', 'Palletizing hours'],
+        ['labels_printed', 'Pallet labels printed'], ['label_hours', 'Labelling hours'],
+        ['qc_pallets', 'Pallets QC\'d'], ['qc_hours', 'QC hours'],
+        ['feeder_pallets', 'Pallets fed (feeder)'], ['feeder_hours', 'Feeder hours'],
+        ['putaway_pallets', 'Pallets put away'], ['putaway_hours', 'Putaway hours'] ] } ] },
+    { id: 'dispatch', title: 'Dispatch', groups: [
+      { title: 'Outbound', fields: [
+        ['boxes_dispatched', 'Boxes dispatched'], ['cbm_dispatched', 'CBM dispatched'], ['dispatch_hours', 'Dispatch hours'] ] },
+      { title: 'Replenishment · two replenishers', fields: [
+        ['replen_pallets', 'Pallets replenished'], ['replen_hours', 'Replenishment hours'] ] } ] },
+    { id: 'returns', title: 'Returns', groups: [
+      { title: 'Boxes returned by reason', fields: [
+        ['damaged', 'Damaged in transit'], ['wrong_item', 'Wrong item picked'], ['refused', 'Customer refused'],
+        ['over_shipped', 'Over-shipped'], ['label_error', 'Label error'], ['other', 'Other'] ] } ] },
+    { id: 'safety', title: 'Safety', groups: [
+      { title: 'Daily checks', fields: [
+        ['lost_time_injuries', 'Lost-time injuries'], ['first_aid_cases', 'First aid cases'], ['near_misses', 'Near misses reported'],
+        ['unsafe_acts', 'Unsafe acts observed'], ['forklift_checks_done', 'Forklift pre-start checks done'],
+        ['forklift_checks_required', 'Forklift checks required'], ['ppe_audit_pct', 'PPE audit %'],
+        ['housekeeping_score', 'Housekeeping score (1–5)'], ['toolbox_talk', 'Toolbox talk held', YN],
+        ['notes', 'Incidents and actions', 'text'] ] } ] },
+  ];
+  const TARGET_FIELDS = [
+    ['hrs_per_container', 'Unloading man-hours per container (max)', 14],
+    ['palletizing_rate', 'Palletizing pallets/hr', 28], ['label_rate', 'Labels printed/hr', 30], ['qc_rate', 'QC pallets/hr', 30],
+    ['feeder_rate', 'Feeder pallets/hr', 28], ['putaway_rate', 'Putaway pallets/hr', 26],
+    ['dispatch_box_rate', 'Dispatch boxes/hr', 950], ['dispatch_cbm_rate', 'Dispatch CBM/hr', 45], ['replen_rate', 'Replenishment pallets/hr (2 people)', 20],
+    ['pick_rate', 'Picker boxes/hr', 25], ['pick_min_boxes', 'Min boxes to score a picker', 50],
+    ['checks_per_sku', 'Random box checks per SKU', 3], ['accuracy_pct', 'PO & ST accuracy % (min)', 99.5],
+    ['ppe_pct', 'PPE audit % (min)', 95], ['housekeeping', 'Housekeeping score (min)', 4],
+  ];
+  const DEFAULT_TARGETS = Object.fromEntries(TARGET_FIELDS.map(([k, , v]) => [k, v]));
+
+  /* ---------- helpers ---------- */
+  const $ = (s) => document.querySelector(s);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const n = (v) => (v === '' || v == null || isNaN(Number(v)) ? null : Number(v));
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const fmt = (v) => (v == null ? '—' : Number(v).toLocaleString('en-AU', { maximumFractionDigits: 2 }));
+  const todayIso = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+  const longDate = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const shortDate = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  const keyOf = (date, wh) => date + '_' + wh;
+  const blankDay = () => ({ receiving: {}, dispatch: {}, returns: {}, safety: {}, pickers: [] });
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+
+  /* ---------- KPI engine ---------- */
+  function scoreDay(d, t) {
+    const out = [];
+    const R = d.receiving || {}, D = d.dispatch || {}, S = d.safety || {}, RT = d.returns || {};
+    const add = (area, name, value, unit, targetText, hit) => out.push({ area, name, value, unit, targetText, hit });
+    const rate = (q, h) => (n(q) != null && n(h) ? r2(n(q) / n(h)) : null);
+    // receiving
+    const cont = (n(R.containers_unloaded_po) || 0) + (n(R.containers_unloaded_st) || 0);
+    const hpc = cont && n(R.unloading_hours) != null ? r2(n(R.unloading_hours) / cont) : null;
+    if (hpc != null) add('Receiving', 'Man-hours per container', hpc, 'h', '≤ ' + t.hrs_per_container + ' h', hpc <= t.hrs_per_container);
+    if (n(R.containers_delivered_po) != null && n(R.containers_unloaded_po) != null)
+      add('Receiving', 'Containers unloaded (PO)', n(R.containers_unloaded_po), 'of ' + n(R.containers_delivered_po), 'All delivered', n(R.containers_unloaded_po) >= n(R.containers_delivered_po));
+    if (n(R.skus_received) && n(R.random_box_checks) != null) {
+      const req = n(R.skus_received) * t.checks_per_sku;
+      add('Receiving', 'Random box checks', n(R.random_box_checks), 'of ' + req, t.checks_per_sku + ' per SKU', n(R.random_box_checks) >= req);
+    }
+    if (cont && n(R.discrepancies) != null) {
+      const acc = r2((1 - n(R.discrepancies) / cont) * 100);
+      add('Receiving', 'PO & ST accuracy', acc, '%', '≥ ' + t.accuracy_pct + '%', acc >= t.accuracy_pct);
+    }
+    if (R.unloaded_same_day) add('Receiving', 'Unloaded on receiving date', R.unloaded_same_day, '', 'Yes', R.unloaded_same_day === 'Yes');
+    if (R.pallets_left_behind) add('Receiving', 'Pallets left behind', R.pallets_left_behind, '', 'No', R.pallets_left_behind === 'No');
+    if (R.container_detention) add('Receiving', 'Container detention', R.container_detention, '', 'No', R.container_detention === 'No');
+    for (const [q, h, tk, label] of [['palletized_pallets', 'palletizing_hours', 'palletizing_rate', 'Palletizing pallets/hr'], ['labels_printed', 'label_hours', 'label_rate', 'Labels/hr'],
+      ['qc_pallets', 'qc_hours', 'qc_rate', 'QC pallets/hr'], ['feeder_pallets', 'feeder_hours', 'feeder_rate', 'Feeder pallets/hr'], ['putaway_pallets', 'putaway_hours', 'putaway_rate', 'Putaway pallets/hr']]) {
+      const v = rate(R[q], R[h]);
+      if (v != null) add('Receiving', label, v, '/hr', '≥ ' + t[tk], v >= t[tk]);
+    }
+    // dispatch
+    const bh = rate(D.boxes_dispatched, D.dispatch_hours);
+    if (bh != null) add('Dispatch', 'Dispatch boxes/hr', bh, '/hr', '≥ ' + t.dispatch_box_rate, bh >= t.dispatch_box_rate);
+    const ch = rate(D.cbm_dispatched, D.dispatch_hours);
+    if (ch != null) add('Dispatch', 'Dispatch CBM/hr', ch, '/hr', '≥ ' + t.dispatch_cbm_rate, ch >= t.dispatch_cbm_rate);
+    const rh = rate(D.replen_pallets, D.replen_hours);
+    if (rh != null) add('Dispatch', 'Replenishment pallets/hr', rh, '/hr · ' + r2(rh / 2) + ' each', '≥ ' + t.replen_rate, rh >= t.replen_rate);
+    // picking
+    const pk = (d.pickers || []).filter((p) => p.name && n(p.boxes) != null && n(p.pickrate));
+    let pickInfo = null;
+    if (pk.length) {
+      const boxes = pk.reduce((s, p) => s + n(p.boxes), 0);
+      const hours = pk.reduce((s, p) => s + n(p.boxes) / n(p.pickrate), 0);
+      const scored = pk.filter((p) => n(p.boxes) >= t.pick_min_boxes);
+      const hit = scored.filter((p) => n(p.pickrate) >= t.pick_rate).length;
+      const wr = r2(boxes / hours);
+      add('Picking', 'Warehouse pick rate', wr, 'boxes/hr', '≥ ' + t.pick_rate, wr >= t.pick_rate);
+      pickInfo = { boxes, hit, scored: scored.length };
+    }
+    // safety
+    const std = [];
+    if (n(S.lost_time_injuries) != null) std.push(['Lost-time injuries', n(S.lost_time_injuries), '', '0', n(S.lost_time_injuries) === 0]);
+    if (n(S.first_aid_cases) != null) std.push(['First aid cases', n(S.first_aid_cases), '', '0', n(S.first_aid_cases) === 0]);
+    if (n(S.forklift_checks_done) != null && n(S.forklift_checks_required)) std.push(['Forklift pre-start checks', n(S.forklift_checks_done), 'of ' + n(S.forklift_checks_required), 'All done', n(S.forklift_checks_done) >= n(S.forklift_checks_required)]);
+    if (n(S.ppe_audit_pct) != null) std.push(['PPE audit', n(S.ppe_audit_pct), '%', '≥ ' + t.ppe_pct + '%', n(S.ppe_audit_pct) >= t.ppe_pct]);
+    if (n(S.housekeeping_score) != null) std.push(['Housekeeping', n(S.housekeeping_score), 'of 5', '≥ ' + t.housekeeping, n(S.housekeeping_score) >= t.housekeeping]);
+    if (S.toolbox_talk) std.push(['Toolbox talk', S.toolbox_talk, '', 'Yes', S.toolbox_talk === 'Yes']);
+    for (const s of std) add('Safety', ...s);
+    const returned = ['damaged', 'wrong_item', 'refused', 'over_shipped', 'label_error', 'other'].reduce((s, k) => s + (n(RT[k]) || 0), 0);
+    const hasReturns = ['damaged', 'wrong_item', 'refused', 'over_shipped', 'label_error', 'other'].some((k) => n(RT[k]) != null);
+    const ops = out.filter((k) => k.area !== 'Safety');
+    return { list: out, opsHit: ops.filter((k) => k.hit).length, opsTotal: ops.length,
+      safetyMet: std.filter((s) => s[4]).length, safetyTotal: std.length, pickInfo, returned: hasReturns ? returned : null };
+  }
+
+  /* ---------- state ---------- */
+  let db = null, user = null, downloads = null;
+  let days = new Map();          // key -> {id, data}
+  let loaded = false;
+  let targets = { ...DEFAULT_TARGETS };
+  let targetsLoaded = false;
+  let curDate = todayIso();
+  let curWh = 'VIC';
+  let ledgerWh = 'All';
+  const drafts = new Map();      // key -> working copy with unsaved edits
+  let working = blankDay();
+  let dirty = false;
+  let remoteChanged = false;
+  let saving = false;
+  let confirmDelete = false;
+  let lastMsg = null;
+
+  try { const s = JSON.parse(localStorage.getItem('opslog-pos') || 'null'); if (s && WAREHOUSES.includes(s.wh)) curWh = s.wh; } catch (e) {}
+  const rememberPos = () => { try { localStorage.setItem('opslog-pos', JSON.stringify({ wh: curWh })); } catch (e) {} };
+
+  /* ---------- form building (once) ---------- */
+  const form = $('#form');
+  for (const sec of SECTIONS) {
+    const det = el('details', 'sec');
+    det.open = true;
+    det.id = 'sec-' + sec.id;
+    const sum = el('summary');
+    sum.append(el('h2', '', sec.title), el('span', 'muted', ''));
+    det.append(sum);
+    const body = el('div', 'sec-body');
+    for (const g of sec.groups) {
+      body.append(el('div', 'sub', g.title));
+      const grid = el('div', 'grid');
+      for (const [key, label, kind] of g.fields) {
+        const f = el('div', 'f');
+        const id = 'f-' + sec.id + '-' + key;
+        const lab = el('label', '', label); lab.htmlFor = id;
+        let input;
+        if (Array.isArray(kind)) { input = el('select'); for (const o of kind) input.append(new Option(o || '—', o)); }
+        else if (kind === 'text') { input = el('textarea'); f.style.gridColumn = '1 / -1'; }
+        else { input = el('input'); input.type = 'number'; input.min = '0'; input.step = 'any'; input.inputMode = 'decimal'; }
+        input.id = id; input.dataset.sec = sec.id; input.dataset.key = key;
+        input.addEventListener('input', () => { working[sec.id] = working[sec.id] || {}; working[sec.id][key] = input.value; markDirty(); });
+        f.append(lab, input);
+        grid.append(f);
+      }
+      body.append(grid);
+    }
+    det.append(body);
+    form.append(det);
+    if (sec.id === 'dispatch') form.append(buildPickingSection());
+  }
+
+  function buildPickingSection() {
+    const det = el('details', 'sec');
+    det.open = true; det.id = 'sec-picking';
+    const sum = el('summary');
+    sum.append(el('h2', '', 'Picking'), el('span', 'muted', 'From the Task User Report'));
+    det.append(sum);
+    const body = el('div', 'sec-body');
+    const paste = el('div', 'paste');
+    const pl = el('label', 'muted', 'Paste rows copied from the Task User Report (name, boxes, bin, pickrate). MMS and Abadan accounts are skipped.');
+    const ta = el('textarea'); ta.id = 'paste'; pl.htmlFor = 'paste';
+    ta.placeholder = '1\tPicker name\t846\t336\t24.44';
+    const pa = el('div', 'row-actions');
+    const pb = el('button', 'btn', 'Add pasted rows'); pb.type = 'button';
+    const pm = el('span', 'state', ''); pm.id = 'paste-msg';
+    pb.addEventListener('click', () => {
+      const res = parsePaste(ta.value);
+      if (!res.rows.length) { pm.textContent = 'No rows found. Each line needs a name followed by boxes, bin and pick rate.'; return; }
+      working.pickers = (working.pickers || []).filter((p) => p.name || p.boxes).concat(res.rows);
+      ta.value = '';
+      pm.textContent = 'Added ' + res.rows.length + ' pickers' + (res.skipped ? ', skipped ' + res.skipped + ' MMS/Abadan rows' : '') + '.';
+      markDirty(); renderPickers();
+    });
+    pa.append(pb, pm);
+    paste.append(pl, ta, pa);
+    const wrap = el('div', 'tbl-wrap');
+    const tbl = el('table', 'pk'); tbl.id = 'pickers';
+    const thead = el('thead'); const hr = el('tr');
+    for (const h of ['Picker', 'Boxes', 'Bins', 'Boxes/hr', 'Result', '']) hr.append(el('th', '', h));
+    thead.append(hr); tbl.append(thead, el('tbody'));
+    wrap.append(tbl);
+    const ra = el('div', 'row-actions');
+    const ab = el('button', 'btn', 'Add picker'); ab.type = 'button';
+    ab.addEventListener('click', () => { working.pickers = working.pickers || []; working.pickers.push({ name: '', boxes: '', bins: '', pickrate: '' }); markDirty(); renderPickers(true); });
+    ra.append(ab);
+    body.append(paste, wrap, ra);
+    det.append(body);
+    return det;
+  }
+
+  function parsePaste(text) {
+    const rows = []; let skipped = 0;
+    for (const line of text.split(/\r?\n/)) {
+      const parts = line.split(/\t|\s{2,}/).map((s) => s.trim()).filter(Boolean);
+      if (parts.length < 4) continue;
+      const nums = [];
+      while (parts.length && !isNaN(Number(parts[parts.length - 1].replace(/,/g, ''))) && nums.length < 3) nums.unshift(Number(parts.pop().replace(/,/g, '')));
+      if (nums.length < 3) continue;
+      if (parts.length > 1 && /^\d+$/.test(parts[0])) parts.shift();
+      const name = parts.join(' ').replace(/\s+-$/, '').trim();
+      if (!name || /^(#|user pick)/i.test(name)) continue;
+      if (/^(mms|abadan)\b/i.test(name)) { skipped++; continue; }
+      rows.push({ name, boxes: String(nums[0]), bins: String(nums[1]), pickrate: String(nums[2]) });
+    }
+    return { rows, skipped };
+  }
+
+  function renderPickers(focusLast) {
+    const tbody = $('#pickers tbody');
+    const list = working.pickers || [];
+    tbody.replaceChildren(...list.map((p, i) => {
+      const tr = el('tr');
+      const cell = (key, type, label) => {
+        const td = el('td'); const inp = el('input');
+        inp.type = type; inp.value = p[key] ?? ''; inp.id = 'pk-' + i + '-' + key; inp.setAttribute('aria-label', label + ' row ' + (i + 1));
+        if (type === 'number') { inp.min = '0'; inp.step = 'any'; inp.inputMode = 'decimal'; }
+        inp.addEventListener('input', () => { list[i][key] = inp.value; markDirty(); paintPickerResult(tr, list[i]); });
+        td.append(inp); return td;
+      };
+      const res = el('td');
+      const del = el('td'); const x = el('button', 'x', '✕'); x.type = 'button'; x.setAttribute('aria-label', 'Remove row ' + (i + 1));
+      x.addEventListener('click', () => { list.splice(i, 1); markDirty(); renderPickers(); });
+      del.append(x);
+      tr.append(cell('name', 'text', 'Picker'), cell('boxes', 'number', 'Boxes'), cell('bins', 'number', 'Bins'), cell('pickrate', 'number', 'Boxes per hour'), res, del);
+      paintPickerResult(tr, p);
+      return tr;
+    }));
+    if (!list.length) { const tr = el('tr'); const td = el('td', 'muted', 'No pickers yet. Paste from the Task User Report or add a picker.'); td.colSpan = 6; tr.append(td); tbody.append(tr); }
+    if (focusLast) tbody.querySelector('tr:last-child input')?.focus();
+  }
+  function paintPickerResult(tr, p) {
+    const td = tr.children[4];
+    const b = n(p.boxes), r = n(p.pickrate);
+    let cls = 'na', txt = '—';
+    if (b != null && r != null) { if (b < targets.pick_min_boxes) txt = 'Too few boxes'; else if (r >= targets.pick_rate) { cls = 'hit'; txt = 'Hit'; } else { cls = 'miss'; txt = 'Missed'; } }
+    td.replaceChildren(el('span', 'pill ' + cls, txt));
+  }
+
+  /* ---------- rendering ---------- */
+  const whSeg = $('#wh'), ledgerSeg = $('#ledger-filter');
+  for (const w of WAREHOUSES) {
+    const b = el('button', '', w); b.type = 'button'; b.dataset.wh = w;
+    b.addEventListener('click', () => switchTo(curDate, w)); whSeg.append(b);
+  }
+  for (const w of ['All', ...WAREHOUSES]) {
+    const b = el('button', '', w); b.type = 'button'; b.dataset.wh = w;
+    b.addEventListener('click', () => { ledgerWh = w; renderLedger(); }); ledgerSeg.append(b);
+  }
+  const dateIn = $('#date');
+  dateIn.value = curDate;
+  dateIn.addEventListener('change', () => { if (dateIn.value && dateIn.validity.valid) switchTo(dateIn.value, curWh); });
+  dateIn.addEventListener('blur', () => { dateIn.value = curDate; });
+
+  function switchTo(date, wh) {
+    const oldKey = keyOf(curDate, curWh);
+    if (dirty) drafts.set(oldKey, clone(working)); else drafts.delete(oldKey);
+    curDate = date; curWh = wh; confirmDelete = false; lastMsg = null; remoteChanged = false;
+    rememberPos();
+    loadWorking();
+    renderAll();
+  }
+
+  function loadWorking() {
+    const key = keyOf(curDate, curWh);
+    if (drafts.has(key)) { working = clone(drafts.get(key)); dirty = true; }
+    else {
+      const saved = days.get(key);
+      working = saved ? Object.assign(blankDay(), clone(saved.data)) : blankDay();
+      dirty = false;
+    }
+    fillForm();
+  }
+
+  function fillForm() {
+    for (const inp of form.querySelectorAll('[data-sec]')) {
+      const v = (working[inp.dataset.sec] || {})[inp.dataset.key];
+      if (document.activeElement !== inp) inp.value = v ?? '';
+    }
+    renderPickers();
+  }
+
+  function markDirty() { dirty = true; lastMsg = null; renderStatus(); renderKpis(); renderLedger(); }
+
+  function renderStatus() {
+    const key = keyOf(curDate, curWh);
+    const saved = days.get(key);
+    $('#day-h').textContent = curWh + ' · ' + longDate(curDate);
+    const st = $('#state');
+    st.className = 'state' + (dirty ? ' dirty' : '');
+    if (!db) st.textContent = 'Saving is unavailable here: sign in to claude.ai to save days.';
+    else if (dirty) st.textContent = saved ? 'Unsaved changes' : 'New day · not saved yet';
+    else if (saved) st.textContent = 'Saved ' + savedAgo(saved.data.savedAt) + (savedByName ? ' by ' + savedByName : '');
+    else st.textContent = 'Nothing saved for this day yet';
+    $('#save').disabled = !db || saving || !dirty;
+    $('#save').textContent = saving ? 'Saving…' : 'Save day';
+    $('#export').hidden = !downloads;
+    $('#danger').hidden = !saved || !db;
+    const da = $('#del-area');
+    if (confirmDelete) {
+      const yes = el('button', 'btn danger', 'Delete ' + curWh + ' ' + shortDate(curDate)); yes.type = 'button';
+      const no = el('button', 'btn', 'Keep it'); no.type = 'button';
+      yes.addEventListener('click', doDelete); no.addEventListener('click', () => { confirmDelete = false; renderStatus(); });
+      da.replaceChildren(el('span', 'muted', 'This removes the saved sheet for everyone.'), yes, no);
+    } else {
+      const b = el('button', 'btn danger', 'Delete saved day…'); b.type = 'button';
+      b.addEventListener('click', () => { confirmDelete = true; renderStatus(); });
+      da.replaceChildren(b);
+    }
+    const nt = $('#notices');
+    nt.replaceChildren();
+    if (remoteChanged) {
+      const box = el('div', 'notice', 'Someone else saved this day while you were editing.');
+      const b = el('button', 'btn', 'Load their version'); b.type = 'button';
+      b.addEventListener('click', () => { drafts.delete(key); remoteChanged = false; loadWorking(); renderAll(); });
+      box.append(b); nt.append(box);
+    }
+    if (lastMsg) nt.append(el('div', 'notice ' + lastMsg.kind, lastMsg.text));
+  }
+  let savedByName = '';
+  async function resolveSavedBy() {
+    savedByName = '';
+    const saved = days.get(keyOf(curDate, curWh));
+    const id = saved?.data?.savedBy;
+    if (!user || !id) return;
+    try { const ps = await user.profiles([id]); savedByName = (ps && ps[id] && ps[id].name) || ''; } catch (e) {}
+    renderStatus();
+  }
+  const savedAgo = (ms) => {
+    if (!ms) return '';
+    const d = new Date(ms);
+    return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' at ' + d.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  function renderKpis() {
+    const sc = scoreDay(working, targets);
+    const sum = $('#kpi-sum');
+    const bits = [];
+    const b = (txt) => el('b', '', txt);
+    const span = (...p) => { const s = el('span'); s.append(...p); return s; };
+    bits.push(span('Operations ', b(sc.opsTotal ? sc.opsHit + ' / ' + sc.opsTotal : '—'), ' KPIs hit'));
+    bits.push(span('Safety ', b(sc.safetyTotal ? sc.safetyMet + ' / ' + sc.safetyTotal : '—'), ' standards met'));
+    if (sc.pickInfo) bits.push(span('Pickers ', b(sc.pickInfo.hit + ' / ' + sc.pickInfo.scored), ' on target'));
+    bits.push(span('Returned ', b(sc.returned == null ? '—' : fmt(sc.returned)), ' boxes'));
+    sum.replaceChildren(...bits);
+    const box = $('#kpis');
+    if (!sc.list.length) { box.replaceChildren(el('div', 'empty', 'Fill in the sheet below. Each KPI is scored against its target as you type.')); return; }
+    box.replaceChildren(...sc.list.map((k) => {
+      const c = el('div', 'kpi ' + (k.hit ? 'hit' : 'miss'));
+      const v = el('div', 'v', typeof k.value === 'number' ? fmt(k.value) : k.value);
+      if (k.unit) v.append(el('span', 'muted', ' ' + k.unit));
+      c.append(el('div', 'k', k.area + ' · ' + k.name), v, el('div', 't', 'Target ' + k.targetText), el('span', 'pill ' + (k.hit ? 'hit' : 'miss'), k.hit ? 'Hit' : 'Missed'));
+      return c;
+    }));
+    for (const sec of ['receiving', 'dispatch', 'returns', 'safety']) {
+      const filled = Object.values(working[sec] || {}).filter((v) => v !== '' && v != null).length;
+      const m = document.querySelector('#sec-' + sec + ' > summary .muted');
+      if (m) m.textContent = filled ? filled + ' filled' : 'Not filled';
+    }
+    const pm = document.querySelector('#sec-picking > summary .muted');
+    if (pm) pm.textContent = (working.pickers || []).filter((p) => p.name).length + ' pickers';
+  }
+
+  function renderLedger() {
+    for (const b of whSeg.children) b.setAttribute('aria-pressed', String(b.dataset.wh === curWh));
+    for (const b of ledgerSeg.children) b.setAttribute('aria-pressed', String(b.dataset.wh === ledgerWh));
+    const box = $('#ledger');
+    if (!db) { box.replaceChildren(el('div', 'empty', 'Saved days appear here for signed-in viewers.')); return; }
+    if (!loaded) return;
+    const keys = new Set([...days.keys(), ...drafts.keys(), ...(dirty ? [keyOf(curDate, curWh)] : [])]);
+    const rows = [...keys].map((k) => { const [date, wh] = k.split('_'); return { k, date, wh }; })
+      .filter((r) => ledgerWh === 'All' || r.wh === ledgerWh)
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : WAREHOUSES.indexOf(a.wh) - WAREHOUSES.indexOf(b.wh)));
+    $('#ledger-sub').textContent = days.size ? days.size + ' saved ' + (days.size === 1 ? 'day' : 'days') + ', newest first.' : 'Every saved day, newest first.';
+    if (!rows.length) { box.replaceChildren(el('div', 'empty', 'No saved days yet. Pick a date and warehouse, fill in the sheet, then press Save day. Each day is kept as its own record.')); return; }
+    box.replaceChildren(...rows.map((r) => {
+      const cur = r.k === keyOf(curDate, curWh);
+      const data = cur ? working : drafts.get(r.k) || days.get(r.k)?.data;
+      const sc = scoreDay(data || blankDay(), targets);
+      const btn = el('button', 'day-row'); btn.type = 'button';
+      btn.setAttribute('aria-current', String(cur));
+      const unsaved = (cur && dirty) || drafts.has(r.k);
+      btn.append(el('span', 'd', shortDate(r.date)), el('span', 'tag', r.wh),
+        el('span', 's', (sc.opsTotal ? sc.opsHit + '/' + sc.opsTotal + ' KPIs hit' : 'No KPIs yet') + (sc.safetyTotal ? ' · safety ' + sc.safetyMet + '/' + sc.safetyTotal : '') + (unsaved ? ' · unsaved' : '')));
+      btn.addEventListener('click', () => { dateIn.value = r.date; switchTo(r.date, r.wh); });
+      return btn;
+    }));
+  }
+
+  function renderTargets() {
+    const box = $('#targets');
+    if (!box.children.length) {
+      for (const [k, label] of TARGET_FIELDS) {
+        const f = el('div', 'f'); const id = 't-' + k;
+        const lab = el('label', '', label); lab.htmlFor = id;
+        const inp = el('input'); inp.type = 'number'; inp.step = 'any'; inp.min = '0'; inp.id = id; inp.dataset.t = k;
+        inp.addEventListener('input', () => { $('#targets-state').textContent = 'Unsaved target changes'; });
+        f.append(lab, inp); box.append(f);
+      }
+    }
+    for (const inp of box.querySelectorAll('input')) if (document.activeElement !== inp) inp.value = targets[inp.dataset.t];
+    $('#save-targets').disabled = !db;
+  }
+
+  function renderAll() { renderStatus(); renderKpis(); renderLedger(); renderTargets(); dateIn.value = curDate; resolveSavedBy(); }
+
+  /* ---------- actions ---------- */
+  function cleanDay() {
+    const out = {};
+    for (const sec of ['receiving', 'dispatch', 'returns', 'safety']) {
+      out[sec] = {};
+      for (const [k, v] of Object.entries(working[sec] || {})) if (v !== '' && v != null) out[sec][k] = String(v);
+    }
+    out.pickers = (working.pickers || []).filter((p) => p.name && String(p.name).trim()).map((p) => ({ name: String(p.name).trim(), boxes: String(p.boxes ?? ''), bins: String(p.bins ?? ''), pickrate: String(p.pickrate ?? '') }));
+    return out;
+  }
+
+  $('#save').addEventListener('click', async () => {
+    if (!db || saving) return;
+    saving = true; renderStatus();
+    const key = keyOf(curDate, curWh);
+    const body = Object.assign(cleanDay(), { date: curDate, warehouse: curWh, savedAt: Date.now() });
+    try { const uid = user ? await user.id() : null; if (uid) body.savedBy = uid; } catch (e) {}
+    try {
+      await db.collection('days').doc(key).set(body);
+      drafts.delete(key); dirty = false; remoteChanged = false;
+      lastMsg = { kind: 'ok', text: 'Saved ' + curWh + ' · ' + shortDate(curDate) + '.' };
+    } catch (e) {
+      lastMsg = { kind: 'err', text: e && e.code === 'quota_exceeded' ? 'The log is full. Delete old days to save new ones.' : 'Couldn’t save. Check you can edit this page, then try again.' };
+    }
+    saving = false; renderAll();
+  });
+
+  async function doDelete() {
+    const key = keyOf(curDate, curWh);
+    try {
+      await db.collection('days').doc(key).delete();
+      drafts.delete(key); confirmDelete = false; working = blankDay(); dirty = false; fillForm();
+      lastMsg = { kind: 'ok', text: 'Deleted the saved sheet for ' + curWh + ' · ' + shortDate(curDate) + '.' };
+    } catch (e) { lastMsg = { kind: 'err', text: 'Couldn’t delete. Only people who can edit this page can delete days.' }; }
+    renderAll();
+  }
+
+  $('#save-targets').addEventListener('click', async () => {
+    const next = {};
+    for (const inp of document.querySelectorAll('#targets input')) next[inp.dataset.t] = n(inp.value) ?? DEFAULT_TARGETS[inp.dataset.t];
+    try { await db.doc('settings/targets').set(next); targets = next; $('#targets-state').textContent = 'Targets saved'; renderAll(); }
+    catch (e) { $('#targets-state').textContent = 'Couldn’t save targets. Check you can edit this page.'; }
+  });
+
+  $('#export').addEventListener('click', async () => {
+    const d = cleanDay();
+    const lines = [['section', 'field', 'value']];
+    for (const sec of SECTIONS) for (const g of sec.groups) for (const [k, label] of g.fields) if (d[sec.id][k] != null) lines.push([sec.title, label, d[sec.id][k]]);
+    for (const p of d.pickers) lines.push(['Picking', p.name, p.boxes + ' boxes / ' + p.bins + ' bins / ' + p.pickrate + ' per hr']);
+    const sc = scoreDay(d, targets);
+    for (const k of sc.list) lines.push(['KPI', k.area + ' · ' + k.name, k.value + ' (' + (k.hit ? 'Hit' : 'Missed') + ', target ' + k.targetText + ')']);
+    const csv = lines.map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+    try { await downloads.save({ filename: 'ops-' + curWh + '-' + curDate + '.csv', data: csv }); }
+    catch (e) { if (e && e.code !== 'declined') { lastMsg = { kind: 'err', text: 'Couldn’t prepare the download.' }; renderStatus(); } }
+  });
+
+  /* ---------- boot ---------- */
+  loadWorking();
+  renderAll();
+
+  (async () => {
+    if (!window.claude || !window.claude.use) { renderAll(); return; }
+    const [d, u, dl] = await Promise.all([window.claude.use('db'), window.claude.use('user'), window.claude.use('downloads')]);
+    db = d; user = u; downloads = dl;
+    if (!db) { loaded = true; renderAll(); return; }
+    db.doc('settings/targets').onSnapshot((snap) => {
+      targets = Object.assign({ ...DEFAULT_TARGETS }, snap.exists ? snap.data() : {});
+      targetsLoaded = true;
+      renderAll(); renderPickers();
+    }, () => {});
+    db.collection('days').orderBy('date', 'desc').limit(1000).onSnapshot((snap) => {
+      const curKey = keyOf(curDate, curWh);
+      const before = days.get(curKey)?.data?.savedAt;
+      days = new Map(snap.docs.filter((x) => x.exists).map((x) => [x.id, { id: x.id, data: x.data() }]));
+      const after = days.get(curKey)?.data?.savedAt;
+      if (!loaded || (!dirty && before !== after)) { loaded = true; loadWorking(); }
+      else if (dirty && after && before !== after && !saving && !snap.metadata.hasPendingWrites) remoteChanged = true;
+      loaded = true;
+      renderAll();
+    }, () => { lastMsg = { kind: 'err', text: 'Saved days couldn’t load. Refresh the page to try again.' }; renderStatus(); });
+  })();
+})();
+</script>

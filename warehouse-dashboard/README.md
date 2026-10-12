@@ -57,3 +57,11 @@ not discouraged.
 
 Types used: `Lost-time injury`, `First aid`, `Near miss`, `Unsafe act`,
 `Property damage`.
+
+## Daily Ops Log (`ops-log.html`)
+
+Data-entry page that saves one record per warehouse per date (`days/<date>_<warehouse>`
+in the page's database): receiving (VIC weekly-sheet rows plus palletizing,
+labels, QC, feeder and putaway), dispatch and replenishment, pickers pasted from
+the Task User Report (MMS and Abadan skipped), returns by reason, and safety.
+Every saved day is scored against shared, editable targets.
