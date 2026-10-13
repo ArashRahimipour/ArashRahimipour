@@ -1298,6 +1298,26 @@ table.pkin input[type=number] { text-align: right; }
     return { sheets: [{ name: file.name, rows: parseCsv(text) }], text };
   }
 
+  // Shrink a screenshot to a JPEG the image limits accept (keeps text readable).
+  async function prepareImage(file, lim) {
+    const okType = (lim.mediaTypes || []).includes(file.type);
+    if (okType && file.size <= lim.maxInputBytes) return file;
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('img')); i.src = url; });
+      const type = (lim.mediaTypes || []).includes('image/jpeg') ? 'image/jpeg' : (lim.mediaTypes || ['image/png'])[0];
+      for (const [maxW, q] of [[2200, 0.9], [1800, 0.85], [1400, 0.8], [1100, 0.75]]) {
+        const s = Math.min(1, maxW / img.naturalWidth);
+        const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+        const blob = await new Promise((res) => c.toBlob(res, type, q));
+        if (blob && blob.size <= lim.maxInputBytes) return blob;
+      }
+      throw new Error('too_big');
+    } finally { URL.revokeObjectURL(url); }
+  }
+  const whFromStore = (s) => { const m = String(s || '').toUpperCase().match(/\b(VIC|NSW|QLD|WA)\b/); return m ? m[1] : null; };
+
   async function readWithClaude(it, ui) {
     if (!sample) return;
     it.status = 'ai'; ui.renderList();
@@ -1306,10 +1326,16 @@ table.pkin input[type=number] { text-align: right; }
       (ui.ctx === 'dispatch' ? '\n\nThis report was uploaded under Dispatch: boxes, CBM, pallets, people and hours in it are dispatch figures unless it clearly says received.' : '') +
       '\n\nReturn ONLY JSON: {"days":[{"weekday":"Monday"|null,"date":"YYYY-MM-DD"|null,"fields":{"<key>":value}}],"pickers":[{"name":"","boxes":0,"bins":0,"pickrate":0}]}. ' +
       'One entry in days per day column in the report (use weekday when the report has day columns, else one entry). Only include fields whose value is clearly in the report; skip computed rates and targets. ' +
-      'pickers: only for a per-picker report (name, boxes, bin, pick rate); leave out accounts named MMS or Abadan. Use [] when absent.';
+      'pickers: only for a per-picker report (name, boxes, bin, pick rate); leave out accounts named MMS or Abadan; read every row shown. Use [] when absent. ' +
+      'Also add "report":{"store":"","date_from":"YYYY-MM-DD"|null,"date_to":"YYYY-MM-DD"|null} from the report\'s own filters or title if shown. Dates on screen are Australian day/month/year (05/10/2026 is 5 October 2026).';
     try {
       let out;
-      if (it.raw && it.raw.image) out = await sample.json(instructions + '\n\nThe report is the attached image.', { images: [it.file], modelTier: 'complex' });
+      if (it.raw && it.raw.image) {
+        const lim = await sample.limits().catch(() => null);
+        if (!lim || !lim.images) throw { code: 'no_images' };
+        let img; try { img = await prepareImage(it.file, lim.images); } catch (e) { throw { code: 'image_too_big' }; }
+        out = await sample.json(instructions + '\n\nThe report is the attached image.', { images: [img], modelTier: 'complex' });
+      }
       else out = await sample.json(instructions + '\n\nReport file "' + it.name + '":\n' + String(it.raw?.text || '').slice(0, 60000), { modelTier: 'complex' });
       const dayList = Array.isArray(out?.days) ? out.days : [];
       const pickers = (Array.isArray(out?.pickers) ? out.pickers : []).filter((p) => p && p.name && !/^(mms|abadan)\b/i.test(p.name))
@@ -1326,11 +1352,23 @@ table.pkin input[type=number] { text-align: right; }
         if (dayList[0].date && /^\d{4}-\d{2}-\d{2}$/.test(dayList[0].date)) { it.date = dayList[0].date; it.to = it.date; }
         if (pickers.length) it.result.pickers = pickers;
       } else if (pickers.length) it.result = { kind: 'picking', pickers, skipped: 0 };
+      const rep = out && out.report;
+      if (rep) {
+        const wh = whFromStore(rep.store); if (wh) it.wh = wh;
+        const ok = (d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d);
+        if (ok(rep.date_from)) { it.date = rep.date_from; it.weekStart = mondayOf(rep.date_from); it.to = ok(rep.date_to) && rep.date_to >= rep.date_from ? rep.date_to : rep.date_from; }
+        if (it.result && it.result.kind !== 'picking') it.to = it.date;
+      }
       if (it.result && (found.size || pickers.length)) { it.status = 'ready'; it.viaAi = true; }
       else { it.status = 'error'; it.error = 'Claude couldn’t find any of the dashboard’s figures in this file.'; }
     } catch (e) {
       it.status = 'error';
-      it.error = e && e.code === 'not_granted' ? 'Reading with Claude wasn’t allowed in this view.' : e && e.code === 'rate_limited' ? 'Too many requests right now. Try again in a minute.' : 'Claude couldn’t read this file.';
+      const c = e && e.code;
+      it.error = c === 'no_images' ? 'This view can’t send pictures to Claude. Copy the table from the ERP screen and use “Paste a table” below, or export it to Excel.'
+        : c === 'image_too_big' ? 'This picture is too large to send. Crop it to the table, or use “Paste a table” below.'
+        : c === 'not_granted' ? 'Reading with Claude wasn’t allowed. Allow it in the page’s permissions, or use “Paste a table” below.'
+        : c === 'rate_limited' ? 'Too many requests right now. Try again in a minute.'
+        : 'Claude couldn’t read this file' + (c ? ' (' + c + ')' : '') + '. Use “Paste a table” below instead.';
     }
     ui.renderList();
   }
@@ -1440,7 +1478,22 @@ table.pkin input[type=number] { text-align: right; }
       tpl.append(b);
     }
     const log = el('div', 'up-log');
-    mount.append(intro, grid, quick, drop, list, allRow, tpl, log);
+    const pasteDet = el('details', 'sec');
+    const ps = el('summary'); ps.append(el('h3', '', 'Paste a table'), el('span', 'muted', 'Select the rows on the ERP screen, copy, paste here'));
+    const pb = el('div', 'sec-body');
+    const pl = el('label', 'muted', 'Paste the Task User Report rows (#, user pick, boxes, bin, pickrate). MMS and Abadan are skipped. The report period and warehouse above are used.');
+    const pta = el('textarea', 'paste-ta'); pta.id = p + '-paste'; pl.htmlFor = pta.id;
+    const pr = el('div', 'row-actions'); const pgo = el('button', 'btn primary', 'Read pasted rows'); pgo.type = 'button'; const pmsg = el('span', 'state', ''); pr.append(pgo, pmsg);
+    pb.append(pl, pta, pr); pasteDet.append(ps, pb);
+    pgo.addEventListener('click', () => {
+      const res = parsePaste(pta.value);
+      if (!res.rows.length) { pmsg.textContent = 'No rows found. Each line needs a name, then boxes, bin and pick rate.'; return; }
+      const it = { id: ++itemSeq, name: 'Pasted Task User Report (' + res.rows.length + ' pickers)', status: 'ready', error: '', result: { kind: 'picking', pickers: res.rows, skipped: res.skipped },
+        weekStart: mondayOf(from.value || todayIso()), date: from.value || todayIso(), to: to.value || from.value || todayIso(), wh: whSel.value };
+      if (it.to < it.date) it.to = it.date;
+      ui.items.push(it); pta.value = ''; pmsg.textContent = ''; ui.renderList();
+    });
+    mount.append(intro, grid, quick, drop, list, allRow, pasteDet, tpl, log);
     Object.assign(ui, { from, to, whSel, list, all, msg, tpl, log });
 
     const addFiles = async (files) => {
