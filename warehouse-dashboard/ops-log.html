@@ -229,6 +229,7 @@ table.pkin input[type=number] { text-align: right; }
           <div class="f"><label for="up-to">Report to</label><input id="up-to" type="date" min="2020-01-01" max="2099-12-31"></div>
           <div class="f"><label for="up-wh">Warehouse</label><select id="up-wh"></select></div>
         </div>
+        <div class="row-actions"><span class="muted">Report covers:</span><div class="seg" id="up-quick"></div></div>
         <label class="drop" id="up-drop" for="up-file">
           <input id="up-file" type="file" multiple accept=".csv,.tsv,.txt,.xlsx,.xls,.xlsm,.png,.jpg,.jpeg,.webp">
           <span><b>Choose files</b> or drop them here</span>
@@ -236,6 +237,8 @@ table.pkin input[type=number] { text-align: right; }
         </label>
         <div class="up-list" id="up-list"></div>
         <div class="row-actions"><button class="btn primary" id="up-all" type="button" hidden>Add all to dashboard</button><span class="state" id="up-msg"></span></div>
+        <div class="row-actions" id="up-templates" hidden><span class="muted">Weekly sheet templates (open in Excel, fill in, upload):</span>
+          <button class="btn" type="button" data-tpl="receiving">Receiving</button><button class="btn" type="button" data-tpl="dispatch">Dispatch and returns</button><button class="btn" type="button" data-tpl="safety">Safety</button></div>
         <div class="up-log" id="up-log"></div>
       </div>
     </details>
@@ -281,6 +284,11 @@ table.pkin input[type=number] { text-align: right; }
       </div>
       <div class="tiles" id="pk-tiles"></div>
       <div class="panel">
+        <h3>Pick rate by week</h3>
+        <p class="muted">Boxes per picking hour for each week, from the weekly ERP uploads (or daily ones added up). Click a week to view it.</p>
+        <div class="tbl-wrap"><div class="matrix" id="pk-weeks"></div></div>
+      </div>
+      <div class="panel">
         <h3>Pickers</h3>
         <div class="tbl-wrap pk-scroll"><table class="t pk" id="pk-table"><thead><tr>
           <th><button type="button" class="th-btn" data-sort="name">Picker</button></th>
@@ -295,7 +303,8 @@ table.pkin input[type=number] { text-align: right; }
     </section>
 
     <section class="section" id="returns">
-      <div class="section-head"><h2>Returns</h2><p class="muted">Boxes received back from customers and carriers.</p></div>
+      <div class="section-head"><h2>Returns</h2><p class="muted">Boxes received back from customers and carriers, as a share of boxes dispatched in the same period.</p></div>
+      <div class="tiles small" id="d-ret-tiles"></div>
       <div class="two">
         <div class="panel"><h3>Boxes returned per day</h3><div class="chart" id="d-ret-chart"></div></div>
         <div class="panel"><h3 id="d-reason-h">Why they came back</h3><div class="reasons" id="d-reasons"></div></div>
@@ -383,9 +392,11 @@ table.pkin input[type=number] { text-align: right; }
         ['feeder_pallets', 'Pallets fed (feeder)'], ['feeder_hours', 'Feeder hours'],
         ['putaway_pallets', 'Pallets put away'], ['putaway_hours', 'Putaway hours'] ] } ] },
     { id: 'dispatch', title: 'Dispatch', groups: [
-      { title: 'Outbound', fields: [['boxes_dispatched', 'Boxes dispatched'], ['cbm_dispatched', 'CBM dispatched'], ['dispatch_hours', 'Dispatch hours']] },
+      { title: 'Outbound', fields: [['orders_dispatched', 'Orders dispatched'], ['boxes_dispatched', 'Boxes dispatched'], ['cbm_dispatched', 'CBM dispatched'],
+        ['pallets_dispatched', 'Pallets dispatched'], ['people_dispatch', 'People on dispatch'], ['dispatch_hours', 'Dispatch man-hours']] },
       { title: 'Replenishment · two replenishers', fields: [['replen_pallets', 'Pallets replenished'], ['replen_hours', 'Replenishment hours']] } ] },
     { id: 'returns', title: 'Returns', groups: [
+      { title: 'Total', fields: [['total_returned', 'Boxes returned (total)']] },
       { title: 'Boxes returned by reason', fields: [
         ['damaged', 'Damaged in transit'], ['wrong_item', 'Wrong item picked'], ['refused', 'Customer refused'],
         ['over_shipped', 'Over-shipped'], ['label_error', 'Label error'], ['other', 'Other']] } ] },
@@ -397,12 +408,12 @@ table.pkin input[type=number] { text-align: right; }
         ['housekeeping_score', 'Housekeeping score (1–5)'], ['toolbox_talk', 'Toolbox talk held', YN],
         ['notes', 'Incidents and actions', 'text']] } ] },
   ];
-  const RETURN_REASONS = SECTIONS[2].groups[0].fields;
+  const RETURN_REASONS = SECTIONS[2].groups[1].fields;
   const TARGET_FIELDS = [
     ['hrs_per_container', 'Unloading man-hours per container (max)', 14],
     ['palletizing_rate', 'Palletizing pallets/hr', 28], ['label_rate', 'Labels printed/hr', 30], ['qc_rate', 'QC pallets/hr', 30],
     ['feeder_rate', 'Feeder pallets/hr', 28], ['putaway_rate', 'Putaway pallets/hr', 26],
-    ['dispatch_box_rate', 'Dispatch boxes/hr', 950], ['dispatch_cbm_rate', 'Dispatch CBM/hr', 45], ['replen_rate', 'Replenishment pallets/hr (2 people)', 20],
+    ['dispatch_box_rate', 'Dispatch boxes/hr', 950], ['dispatch_cbm_rate', 'Dispatch CBM/hr', 45], ['replen_rate', 'Replenishment pallets/hr (2 people)', 20], ['return_rate', 'Return rate % of boxes dispatched (max)', 1],
     ['pick_rate', 'Picker boxes/hr', 25], ['pick_min_boxes', 'Min boxes to score a picker', 50],
     ['checks_per_sku', 'Random box checks per SKU', 3], ['accuracy_pct', 'PO & ST accuracy % (min)', 99.5],
     ['ppe_pct', 'PPE audit % (min)', 95], ['housekeeping', 'Housekeeping score (min)', 4],
@@ -488,13 +499,17 @@ table.pkin input[type=number] { text-align: right; }
     if (n(S.housekeeping_score) != null) std.push(['hk', 'Housekeeping', n(S.housekeeping_score), '/ 5', 'Standard: ' + t.housekeeping + ' or more', n(S.housekeeping_score) >= t.housekeeping]);
     if (S.toolbox_talk) std.push(['tbt', 'Toolbox talk', S.toolbox_talk, '', 'Held before shift start', S.toolbox_talk === 'Yes']);
     for (const s of std) add(s[0], 'Safety', s[1], s[2], s[3], s[4], s[5]);
-    const hasReturns = RETURN_REASONS.some(([k]) => n(RT[k]) != null);
-    const returned = RETURN_REASONS.reduce((s, [k]) => s + (n(RT[k]) || 0), 0);
+    const hasReasons = RETURN_REASONS.some(([k]) => n(RT[k]) != null);
+    const hasReturns = hasReasons || n(RT.total_returned) != null;
+    const returned = hasReasons ? RETURN_REASONS.reduce((s, [k]) => s + (n(RT[k]) || 0), 0) : n(RT.total_returned) || 0;
+    const shipped = n(D.boxes_dispatched);
+    const returnRate = hasReturns && shipped ? Math.round((returned / shipped) * 10000) / 100 : null;
+    if (returnRate != null) add('return_rate', 'Returns', 'Return rate', returnRate, '% of boxes dispatched', t.return_rate + '% or less', returnRate <= t.return_rate);
     const by = (area) => { const l = out.filter((k) => k.area === area); return { hit: l.filter((k) => k.hit).length, total: l.length }; };
     const ops = out.filter((k) => k.area !== 'Safety');
     return { list: out, byId: Object.fromEntries(out.map((k) => [k.id, k])), rec: by('Receiving'), dis: by('Dispatch'),
       opsHit: ops.filter((k) => k.hit).length, opsTotal: ops.length, safetyMet: std.filter((s) => s[5]).length, safetyTotal: std.length,
-      pickInfo, returned: hasReturns ? returned : null };
+      pickInfo, returned: hasReturns ? returned : null, returnRate, shipped };
   }
 
   /* ===================== state ===================== */
@@ -646,7 +661,7 @@ table.pkin input[type=number] { text-align: right; }
       tile('Receiving KPIs hit', rh, rt, missedNames('Receiving'), null, cls(sc.rec.hit, sc.rec.total)),
       tile('Dispatch KPIs hit', dh, dtt, missedNames('Dispatch'), null, cls(sc.dis.hit, sc.dis.total)),
       tile('Safety standards met', sh, st, sc.safetyTotal ? (sc.safetyMet === sc.safetyTotal ? 'Clean period' : 'See safety below') : 'Not entered', null, sc.safetyTotal ? (sc.safetyMet === sc.safetyTotal ? 'c-ok' : 'c-bad') : ''),
-      tile('Boxes returned', sc.returned == null ? '—' : fmt(sc.returned), '', 'Total for the period'),
+      tile('Return rate', sc.returnRate == null ? '—' : fmt(sc.returnRate), sc.returnRate == null ? '' : '%', sc.returned == null ? 'Not entered' : fmt(sc.returned) + ' boxes returned' + (sc.shipped ? ' of ' + fmt(sc.shipped) + ' dispatched' : ''), resPill(sc.byId.return_rate)),
     );
 
     const B = sc.byId, R = sc.agg.receiving || {};
@@ -759,7 +774,7 @@ table.pkin input[type=number] { text-align: right; }
     if (!list.length) { box.style.gridTemplateColumns = '1fr'; box.replaceChildren(el('div', 'empty', 'Each saved day in the period for ' + dWh + ' appears here as a column.')); return; }
     const scores = list.map((d) => ({ date: d.date, sc: scoreDay(d, targets) }));
     const kpis = []; for (const { sc } of scores) for (const k of sc.list) if (k.area !== 'Safety' && !kpis.some((x) => x.id === k.id)) kpis.push({ id: k.id, area: k.area, name: k.name });
-    const order = ['hpc', 'unloaded', 'checks', 'accuracy', 'sameday', 'leftbehind', 'detention', 'palletizing', 'labels', 'qc', 'feeder', 'putaway', 'disp_box', 'disp_cbm', 'replen', 'pick'];
+    const order = ['hpc', 'unloaded', 'checks', 'accuracy', 'sameday', 'leftbehind', 'detention', 'palletizing', 'labels', 'qc', 'feeder', 'putaway', 'disp_box', 'disp_cbm', 'replen', 'pick', 'return_rate'];
     kpis.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
     box.style.gridTemplateColumns = `minmax(10rem, 15rem) repeat(${scores.length}, minmax(3.2rem, 1fr))`;
     const kids = [el('div', '')];
@@ -785,8 +800,13 @@ table.pkin input[type=number] { text-align: right; }
   }
 
   function drawReturns(list, sc) {
-    drawBarChart($('#d-ret-chart'), list.map((d) => ({ date: d.date, v: scoreDay(d, targets).returned })).filter((x) => x.v != null),
-      { colorOf: () => 'var(--series)', tipOf: (x) => [fmt(x.v) + ' boxes returned'], empty: 'Days with returns show here.' });
+    const k = sc.byId.return_rate;
+    $('#d-ret-tiles').replaceChildren(
+      tile('Return rate', k ? fmt(k.value) : '—', k ? '%' : '', k ? 'Target ' + k.targetText + ' of boxes dispatched' : sc.returned != null ? 'Upload boxes dispatched to see the rate' : 'Not entered', resPill(k)),
+      tile('Boxes returned', fmt(sc.returned), '', 'Total for the period'),
+      tile('Boxes dispatched', fmt(sc.shipped), '', 'Total for the period'));
+    drawBarChart($('#d-ret-chart'), list.map((d) => { const s = scoreDay(d, targets); return { date: d.date, v: s.returned, pct: s.returnRate }; }).filter((x) => x.v != null),
+      { colorOf: (x) => (x.pct != null && x.pct > targets.return_rate ? 'var(--bad)' : 'var(--series)'), tipOf: (x) => [fmt(x.v) + ' boxes returned', x.pct != null ? fmt(x.pct) + '% of boxes dispatched' : 'No dispatch figure that day'], empty: 'Days with returns show here.' });
     $('#d-reason-h').textContent = 'Why they came back · ' + periodLabel();
     const RT = sc.agg.returns || {};
     const rows = RETURN_REASONS.map(([k, label]) => ({ label, v: n(RT[k]) })).filter((r) => r.v != null).sort((a, b) => b.v - a.v);
@@ -874,6 +894,47 @@ table.pkin input[type=number] { text-align: right; }
       return tr;
     }));
     if (!rows.length) { const tr = el('tr'); const td = el('td', 'muted', 'No pickers in this period' + (pkWh === 'All' ? '' : ' for ' + pkWh) + '.'); td.colSpan = 7; tr.append(td); tbody.append(tr); }
+    drawPickWeeks();
+  }
+  // Pickers for one week: daily uploads in it, plus ERP reports covering about a week inside it.
+  function weekPickers(wh, a, b) {
+    const list = daysFor(wh).filter((d) => d.date >= a && d.date <= b).flatMap((d) => d.pickers || []);
+    for (const r of reports.values()) {
+      if (r.warehouse !== wh) continue; const rg = reportRange(r); if (!rg) continue;
+      const len = datesBetween(rg[0], rg[1]).length;
+      if (len <= 8 && overlap(rg[0], rg[1], a, b) * 2 >= len) list.push(...(r.pickers || []));
+    }
+    return combinePickers(list);
+  }
+  function drawPickWeeks() {
+    const box = $('#pk-weeks');
+    const lastMon = mondayOf(pTo);
+    const weeks = [...Array(8)].map((_, i) => addDays(lastMon, -7 * (7 - i)));
+    const T = targets.pick_rate, MIN = targets.pick_min_boxes;
+    const cellsFor = (whs) => weeks.map((m) => {
+      const ps = whs.flatMap((w) => weekPickers(w, m, addDays(m, 6)));
+      const boxes = ps.reduce((s, p) => s + n(p.boxes), 0), hours = ps.reduce((s, p) => s + n(p.boxes) / n(p.pickrate), 0);
+      const scored = ps.filter((p) => n(p.boxes) >= MIN);
+      return ps.length ? { rate: r2(boxes / hours), hit: scored.filter((p) => n(p.pickrate) >= T).length, scored: scored.length, boxes } : null;
+    });
+    const rowsData = [['All', cellsFor(WAREHOUSES)], ...WAREHOUSES.map((w) => [w, cellsFor([w])])];
+    if (!rowsData.some(([, c]) => c.some(Boolean))) { box.style.gridTemplateColumns = '1fr'; box.replaceChildren(el('div', 'empty', 'Upload the Task User Report each week (set Report from and to to the week) and each week’s pick rate shows here.')); return; }
+    box.style.gridTemplateColumns = `6rem repeat(${weeks.length}, minmax(4.2rem, 1fr))`;
+    const kids = [el('div', '')];
+    for (const m of weeks) {
+      const b = el('button', 'dh'); b.type = 'button'; b.setAttribute('aria-pressed', String(pFrom === m && pTo === addDays(m, 6)));
+      b.append(el('div', '', 'Week of'), el('div', '', dayMon(m)));
+      b.addEventListener('click', () => { pFrom = m; pTo = addDays(m, 6); pPreset = 'custom'; periodTouched = true; render(); }); kids.push(b);
+    }
+    for (const [w, cells] of rowsData) {
+      const lab = el('div', 'lab'); lab.append(el('span', '', w === 'All' ? 'All' : w)); kids.push(lab);
+      cells.forEach((c, i) => {
+        const d = el('div', 'cell' + (c ? (c.rate >= T ? ' hit' : ' miss') : ''), c ? fmt(c.rate) : '');
+        if (c) { d.addEventListener('pointermove', (e) => showTip(e, w + ' · week of ' + dayMon(weeks[i]), [fmt(c.rate) + ' boxes/hr · target ' + T, c.hit + ' of ' + c.scored + ' pickers on target · ' + fmt(c.boxes) + ' boxes'])); d.addEventListener('pointerleave', hideTip); }
+        kids.push(d);
+      });
+    }
+    box.replaceChildren(...kids);
   }
   function parsePaste(text) {
     const rows = []; let skipped = 0;
@@ -1099,12 +1160,35 @@ table.pkin input[type=number] { text-align: right; }
   let itemSeq = 0;
 
   // Turn a row description from any report into one of our fields.
-  function mapLabel(raw) {
+  // A row that only names a section of the sheet (RECEIVING, DISPATCH, ...).
+  function sectionOf(raw, exact) {
+    const s = String(raw || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const re = exact ? /^(receiving|inbound|dispatch|despatch|outbound|returns?|safety|whs|replenishment)$/ : /\b(receiving|inbound|dispatch|despatch|outbound|returns?|safety)\b/;
+    const m = s.match(re); if (!m) return null;
+    const w = m[1];
+    return /receiv|inbound/.test(w) ? 'receiving' : /dispatch|despatch|outbound|replen/.test(w) ? 'dispatch' : /return/.test(w) ? 'returns' : 'safety';
+  }
+  function mapLabel(raw, ctx) {
     const s = String(raw || '').toLowerCase().replace(/\s+/g, ' ').trim();
     if (!s) return null;
     if (LABEL_TO_KEY[s]) return LABEL_TO_KEY[s];
     if (/rate|target|%\)|per hour|\/hr|average/.test(s) && !/ppe/.test(s)) return null;
     const hrs = /hour|hrs|time/.test(s);
+    if (ctx === 'dispatch' || /dispatch|despatch|outbound|shipped/.test(s)) {
+      if (/replen/.test(s)) return hrs ? 'replen_hours' : 'replen_pallets';
+      if (/return/.test(s)) { /* falls through to returns */ }
+      else if (/order/.test(s)) return 'orders_dispatched';
+      else if (/people|staff|headcount|crew|pickers? assigned/.test(s)) return 'people_dispatch';
+      else if (hrs) return 'dispatch_hours';
+      else if (/cbm|cubic/.test(s)) return 'cbm_dispatched';
+      else if (/pallet/.test(s)) return 'pallets_dispatched';
+      else if (/box|carton|unit/.test(s)) return 'boxes_dispatched';
+    }
+    if (/return/.test(s) || ctx === 'returns') {
+      if (/damag/.test(s)) return 'damaged'; if (/wrong/.test(s)) return 'wrong_item'; if (/refus/.test(s)) return 'refused';
+      if (/over.?ship/.test(s)) return 'over_shipped'; if (/label/.test(s)) return 'label_error'; if (/other/.test(s)) return 'other';
+      if (/total|number|boxes|cartons/.test(s)) return 'total_returned';
+    }
     if (/return/.test(s)) {
       if (/damag/.test(s)) return 'damaged'; if (/wrong/.test(s)) return 'wrong_item'; if (/refus/.test(s)) return 'refused';
       if (/over.?ship/.test(s)) return 'over_shipped'; if (/label/.test(s)) return 'label_error'; return 'other';
@@ -1179,21 +1263,25 @@ table.pkin input[type=number] { text-align: right; }
         const first = Math.min(...cols.filter((c) => c >= 0));
         const byDay = WEEKDAYS.map(() => ({}));
         const found = new Set();
+        let ctx = sectionOf(rows.slice(0, i + 1).flat().map(txt).join(' '));
         for (const r of rows.slice(i + 1)) {
           const label = r.slice(0, first).map(txt).filter(Boolean).join(' ');
-          const key = mapLabel(label); if (!key) continue;
+          const sec = sectionOf(label, true); if (sec) { ctx = sec; continue; }
+          const key = mapLabel(label, ctx); if (!key) continue;
           cols.forEach((c, di) => { if (c >= 0 && putField(byDay[di], key, r[c])) found.add(key); });
         }
         if (found.size) return { kind: 'weekly', byDay, found: [...found] };
       }
     }
     // Description / value sheet for one day (also our own CSV export: section, field, value)
-    const day = {}; const found = new Set();
+    const day = {}; const found = new Set(); let ctx = null;
     for (const r of rows) {
       const cells = r.map(txt).filter((c) => c !== '');
+      if (cells.length === 1) { const sec = sectionOf(cells[0], true); if (sec) ctx = sec; continue; }
       if (cells.length < 2) continue;
-      const label = cells.length >= 3 && /^(receiving|dispatch|returns|safety)$/i.test(cells[0]) ? cells[1] : cells.slice(0, -1).join(' ');
-      const key = mapLabel(label); if (!key) continue;
+      const own = cells.length >= 3 ? sectionOf(cells[0], true) : null;
+      const label = own ? cells[1] : cells.slice(0, -1).join(' ');
+      const key = mapLabel(label, own || ctx); if (!key) continue;
       if (putField(day, key, cells[cells.length - 1])) found.add(key);
     }
     if (found.size >= 2) return { kind: 'daily', day, found: [...found] };
@@ -1420,6 +1508,42 @@ table.pkin input[type=number] { text-align: right; }
   upDrop.addEventListener('drop', (e) => { e.preventDefault(); upDrop.classList.remove('over'); if (e.dataTransfer?.files?.length) addFiles([...e.dataTransfer.files]); });
   $('#up-all').addEventListener('click', async () => { for (const it of items.filter((x) => x.status === 'ready')) await commitItem(it); });
 
+  // Quick report periods for uploads.
+  const UP_QUICK = { today: 'Today', yesterday: 'Yesterday', week: 'This week', lastweek: 'Last week', period: 'Period shown above' };
+  function upQuick(q) {
+    const t = todayIso();
+    const [a, b] = q === 'today' ? [t, t] : q === 'yesterday' ? [addDays(t, -1), addDays(t, -1)] : q === 'week' ? weekOf(t) : q === 'lastweek' ? weekOf(addDays(t, -7)) : [pFrom, pTo];
+    upFrom.value = a; upTo.value = b;
+  }
+  $('#up-quick').replaceChildren(...Object.entries(UP_QUICK).map(([q, label]) => { const b = el('button', 'chip', label); b.type = 'button'; b.addEventListener('click', () => upQuick(q)); return b; }));
+
+  // Weekly sheet templates, in the same layout as the VIC weekly report.
+  const TEMPLATES = {
+    receiving: ['RECEIVING', ['Number of Containers Delivered (PO)', 'Number of Containers Unloaded (PO)', 'Number of Containers Received (ST)', 'Number of Containers Unloaded (ST)',
+      'Number of Discrepancies found per Container', 'Number of Containers Sent Out', 'Number of SKU\'s Received', 'Number of Pallet Used to Unload Container',
+      'Number of People Assigned for Unloading Container', 'Total Container Unloading time', 'Total CBM Received', 'Total Number of Boxes Received',
+      'Container Unloaded on The Receiving Date', 'Random Box Checking at The Time of Receiving (3 Boxes/SKU\'s)', 'Container Detention', 'Pallets Left Behind',
+      'Number of Pallets Built (Palletizing)', 'Palletizing Hours', 'Number of Pallet Labels Printed', 'Labelling Hours', 'Number of Pallets QC\'d', 'QC Hours',
+      'Number of Pallets Fed (Feeder)', 'Feeder Hours', 'Number of Pallets Put Away', 'Putaway Hours']],
+    dispatch: ['DISPATCH', ['Number of Orders Dispatched', 'Number of Boxes Dispatched', 'Total CBM Dispatched', 'Number of Pallets Dispatched',
+      'Number of People Assigned for Dispatch', 'Total Dispatch Man-Hours', 'Number of Pallets Replenished', 'Total Replenishment Hours',
+      'RETURNS', 'Total Boxes Returned', 'Returned - Damaged in Transit', 'Returned - Wrong Item Picked', 'Returned - Customer Refused',
+      'Returned - Over-Shipped', 'Returned - Label Error', 'Returned - Other']],
+    safety: ['SAFETY', ['Lost Time Injuries', 'First Aid Cases', 'Near Misses Reported', 'Unsafe Acts Observed', 'Forklift Pre-Start Checks Done',
+      'Forklift Pre-Start Checks Required', 'PPE Audit %', 'Housekeeping Score (1-5)', 'Toolbox Talk Held (Yes/No)']],
+  };
+  const templateCsv = (kind) => {
+    const [title, rows] = TEMPLATES[kind];
+    const days = WEEKDAYS.map((d) => d.toUpperCase());
+    const blank = days.map(() => '');
+    const lines = [[upWh.value + ' WH WEEKLY REPORTING - ' + title], ['DESCRIPTION', ...days], [title], ...rows.map((r) => (/^[A-Z]+$/.test(r) ? [r] : [r, ...blank]))];
+    return lines.map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+  };
+  for (const b of document.querySelectorAll('#up-templates [data-tpl]')) b.addEventListener('click', async () => {
+    try { await downloads.save({ filename: upWh.value.toLowerCase() + '-weekly-' + b.dataset.tpl + '.csv', data: templateCsv(b.dataset.tpl) }); }
+    catch (e) { if (e && e.code !== 'declined') $('#up-msg').textContent = 'Couldn’t prepare the template.'; }
+  });
+
   /* ===================== render & boot ===================== */
   function render() {
     hideTip();
@@ -1455,6 +1579,7 @@ table.pkin input[type=number] { text-align: right; }
     db.collection('picking').limit(500).onSnapshot((snap) => { reports = new Map(snap.docs.filter((x) => x.exists).map((x) => [x.id, x.data()])); render(); }, () => {});
     db.collection('uploads').orderBy('savedAt', 'desc').limit(200).onSnapshot((snap) => { uploadsLog = snap.docs.filter((x) => x.exists).map((x) => x.data()); if (view === 'dash') renderUploadLog(); }, () => {});
     window.claude.use('sample').then((s) => { sample = s; renderUploadList(); });
+    $('#up-templates').hidden = !downloads;
   })();
 })();
 </script>
