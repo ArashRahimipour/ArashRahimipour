@@ -167,6 +167,27 @@ table.pkin input[type=number] { text-align: right; }
 .x { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 4px 8px; }
 .row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .paste-ta { width: 100%; min-height: 100px; font-family: ui-monospace, Menlo, monospace; font-size: .8rem; background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+.drop { display: grid; place-items: center; gap: 6px; text-align: center; border: 1.5px dashed var(--line); border-radius: var(--r); padding: 22px 16px; cursor: pointer; color: var(--muted); background: var(--field); }
+.drop:hover, .drop.over { border-color: var(--fg); color: var(--fg); }
+.drop b { color: var(--fg); }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.drop:focus-within { outline: 2px solid var(--fg); outline-offset: 2px; }
+.up-list { display: grid; gap: 10px; }
+.up-item { border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 8px; background: var(--panel); }
+.up-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.up-head .name { font-weight: 600; word-break: break-all; margin-right: auto; }
+.up-kind { font-size: .78rem; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--series) 14%, transparent); color: var(--series); font-weight: 600; }
+.up-kind.bad { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
+.up-kind.done { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+.up-opts { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: .88rem; }
+.up-opts input, .up-opts select { background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.up-prev { font-size: .85rem; color: var(--muted); display: grid; gap: 4px; }
+.up-prev ul { margin: 0; padding-left: 1.1rem; columns: 2 16rem; }
+.up-prev b { color: var(--fg); font-weight: 600; }
+.up-log { display: grid; gap: 4px; font-size: .85rem; }
+.up-log div { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--muted); }
+.up-log b { color: var(--fg); font-weight: 600; }
+.day-files { font-size: .85rem; color: var(--muted); }
 .kpis { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); }
 </style>
 
@@ -185,10 +206,30 @@ table.pkin input[type=number] { text-align: right; }
         </div>
       </div>
       <p class="take" id="d-take">Loading saved days…</p>
+      <p class="day-files" id="d-files"></p>
       <nav class="nav" aria-label="Sections">
         <a class="chip" href="#receiving">Receiving</a><a class="chip" href="#dispatch">Dispatch</a><a class="chip" href="#history">Did the team hit target?</a><a class="chip" href="#picking">Picking</a><a class="chip" href="#returns">Returns</a><a class="chip" href="#safety">Safety</a>
       </nav>
     </header>
+
+    <details class="sec" id="upload">
+      <summary><h2>Upload daily reports</h2><span class="muted">Excel, CSV or screenshots · the dashboard fills in by itself</span></summary>
+      <div class="sec-body">
+        <p class="muted">Drop each activity's report for the day: the weekly receiving sheet, the Task User Report, dispatch, replenishment, feeder, putaway, returns or safety reports. Each file is read, you check what was found, and it's added to that day and warehouse.</p>
+        <div class="grid">
+          <div class="f"><label for="up-date">Report date</label><input id="up-date" type="date" min="2020-01-01" max="2099-12-31"></div>
+          <div class="f"><label for="up-wh">Warehouse</label><select id="up-wh"></select></div>
+        </div>
+        <label class="drop" id="up-drop" for="up-file">
+          <input id="up-file" type="file" multiple accept=".csv,.tsv,.txt,.xlsx,.xls,.xlsm,.png,.jpg,.jpeg,.webp">
+          <span><b>Choose files</b> or drop them here</span>
+          <span>.xlsx · .xls · .csv · screenshots (.png, .jpg)</span>
+        </label>
+        <div class="up-list" id="up-list"></div>
+        <div class="row-actions"><button class="btn primary" id="up-all" type="button" hidden>Add all to dashboard</button><span class="state" id="up-msg"></span></div>
+        <div class="up-log" id="up-log"></div>
+      </div>
+    </details>
 
     <section class="tiles" id="d-summary" aria-label="Day summary"></section>
 
@@ -320,6 +361,7 @@ table.pkin input[type=number] { text-align: right; }
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 (() => {
   /* ===================== schema ===================== */
@@ -995,12 +1037,340 @@ table.pkin input[type=number] { text-align: right; }
     try { await downloads.save({ filename: 'ops-' + curWh + '-' + curDate + '.csv', data: csv }); } catch (e) { if (e && e.code !== 'declined') { lastMsg = { kind: 'err', text: 'Couldn’t prepare the download.' }; renderEntry(); } }
   });
 
+  /* ===================== uploads ===================== */
+  const FIELD_INFO = {}; // key -> {sec, label, kind}
+  for (const s of SECTIONS) for (const g of s.groups) for (const [k, label, kind] of g.fields) FIELD_INFO[k] = { sec: s.id, label, kind: Array.isArray(kind) ? 'yn' : kind === 'text' ? 'text' : 'num' };
+  const LABEL_TO_KEY = Object.fromEntries(Object.entries(FIELD_INFO).map(([k, f]) => [f.label.toLowerCase(), k]));
+  const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  let sample = null, uploadsLog = [];
+  const items = [];
+  let itemSeq = 0;
+
+  // Turn a row description from any report into one of our fields.
+  function mapLabel(raw) {
+    const s = String(raw || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!s) return null;
+    if (LABEL_TO_KEY[s]) return LABEL_TO_KEY[s];
+    if (/rate|target|%\)|per hour|\/hr|average/.test(s) && !/ppe/.test(s)) return null;
+    const hrs = /hour|hrs|time/.test(s);
+    if (/return/.test(s)) {
+      if (/damag/.test(s)) return 'damaged'; if (/wrong/.test(s)) return 'wrong_item'; if (/refus/.test(s)) return 'refused';
+      if (/over.?ship/.test(s)) return 'over_shipped'; if (/label/.test(s)) return 'label_error'; return 'other';
+    }
+    if (/lost.?time|\blti\b/.test(s)) return 'lost_time_injuries';
+    if (/first aid/.test(s)) return 'first_aid_cases';
+    if (/near.?miss/.test(s)) return 'near_misses';
+    if (/unsafe/.test(s)) return 'unsafe_acts';
+    if (/forklift|pre.?start/.test(s)) return /required|total|due/.test(s) ? 'forklift_checks_required' : 'forklift_checks_done';
+    if (/\bppe\b/.test(s)) return 'ppe_audit_pct';
+    if (/housekeeping/.test(s)) return 'housekeeping_score';
+    if (/toolbox/.test(s)) return 'toolbox_talk';
+    if (/unloaded on (the )?receiving date|same.?day/.test(s)) return 'unloaded_same_day';
+    if (/detention/.test(s)) return 'container_detention';
+    if (/left behind/.test(s)) return 'pallets_left_behind';
+    if (/di(s)?crepanc/.test(s)) return 'discrepancies';
+    if (/sent out/.test(s)) return 'containers_sent_out';
+    if (/containers? (delivered|received)/.test(s)) return /\(st\)|\bst\b/.test(s) ? 'containers_received_st' : 'containers_delivered_po';
+    if (/containers? unloaded/.test(s)) return /\(st\)|\bst\b/.test(s) ? 'containers_unloaded_st' : 'containers_unloaded_po';
+    if (/replen/.test(s)) return hrs ? 'replen_hours' : 'replen_pallets';
+    if (/put.?away/.test(s)) return hrs ? 'putaway_hours' : 'putaway_pallets';
+    if (/feed/.test(s)) return hrs ? 'feeder_hours' : 'feeder_pallets';
+    if (/\bqc\b|quality check/.test(s)) return hrs ? 'qc_hours' : 'qc_pallets';
+    if (/label/.test(s)) return hrs ? 'label_hours' : 'labels_printed';
+    if (/palleti[sz]/.test(s)) return hrs ? 'palletizing_hours' : 'palletized_pallets';
+    if (/random box|box check/.test(s)) return 'random_box_checks';
+    if (/people|staff|headcount|crew/.test(s) && /unload/.test(s)) return 'people_unloading';
+    if (/pallets? used/.test(s)) return 'pallets_used';
+    if (/unloading (time|hours)|container unloading time|man.?hours/.test(s)) return 'unloading_hours';
+    if (/dispatch|outbound|shipped|despatch/.test(s)) { if (/cbm/.test(s)) return 'cbm_dispatched'; if (hrs) return 'dispatch_hours'; if (/box|carton|unit/.test(s)) return 'boxes_dispatched'; }
+    if (/sku/.test(s)) return 'skus_received';
+    if (/cbm/.test(s)) return 'cbm_received';
+    if (/boxes|cartons/.test(s) && /receiv/.test(s)) return 'boxes_received';
+    return null;
+  }
+  function cleanValue(key, v) {
+    if (v == null) return null;
+    const s = String(v).trim();
+    if (!s || s === '-' || s === '–' || /^#/.test(s)) return null;
+    const info = FIELD_INFO[key];
+    if (info.kind === 'yn') { if (/^y(es)?$/i.test(s)) return 'Yes'; if (/^no?$/i.test(s)) return 'No'; return null; }
+    if (info.kind === 'text') return s;
+    const num = Number(s.replace(/[,%\s]/g, ''));
+    return isNaN(num) ? null : String(num);
+  }
+  const putField = (day, key, raw) => { const v = cleanValue(key, raw); if (v == null) return false; const sec = FIELD_INFO[key].sec; day[sec] = day[sec] || {}; day[sec][key] = v; return true; };
+
+  // Spreadsheet/CSV rows -> one of: weekly sheet, picking report, key/value day sheet.
+  function parseRows(rows) {
+    const txt = (c) => (c == null ? '' : String(c).trim());
+    // Task User Report
+    for (let i = 0; i < Math.min(rows.length, 30); i++) {
+      const low = rows[i].map((c) => txt(c).toLowerCase());
+      const iName = low.findIndex((c) => /user pick|picker|^user$|^name$/.test(c));
+      const iBox = low.findIndex((c) => /^boxes?$/.test(c)), iBin = low.findIndex((c) => /^bins?$/.test(c)), iRate = low.findIndex((c) => /pick ?rate/.test(c));
+      if (iName >= 0 && iBox >= 0 && iRate >= 0) {
+        const pickers = []; let skipped = 0;
+        for (const r of rows.slice(i + 1)) {
+          const name = txt(r[iName]).replace(/\s+-$/, '').trim(); const b = Number(txt(r[iBox]).replace(/,/g, '')), rt = Number(txt(r[iRate]).replace(/,/g, ''));
+          if (!name || isNaN(b) || isNaN(rt) || txt(r[iBox]) === '') continue;
+          if (/^(mms|abadan)\b/i.test(name)) { skipped++; continue; }
+          pickers.push({ name, boxes: String(b), bins: iBin >= 0 ? String(Number(txt(r[iBin]).replace(/,/g, '')) || 0) : '', pickrate: String(rt) });
+        }
+        if (pickers.length) return { kind: 'picking', pickers, skipped };
+      }
+    }
+    // Weekly sheet with Monday..Sunday columns
+    for (let i = 0; i < Math.min(rows.length, 30); i++) {
+      const low = rows[i].map((c) => txt(c).toLowerCase());
+      const cols = WEEKDAYS.map((d) => low.findIndex((c) => c === d || c.startsWith(d.slice(0, 3)) && c.length <= 9));
+      if (cols[0] >= 0 && cols[1] >= 0) {
+        const first = Math.min(...cols.filter((c) => c >= 0));
+        const byDay = WEEKDAYS.map(() => ({}));
+        const found = new Set();
+        for (const r of rows.slice(i + 1)) {
+          const label = r.slice(0, first).map(txt).filter(Boolean).join(' ');
+          const key = mapLabel(label); if (!key) continue;
+          cols.forEach((c, di) => { if (c >= 0 && putField(byDay[di], key, r[c])) found.add(key); });
+        }
+        if (found.size) return { kind: 'weekly', byDay, found: [...found] };
+      }
+    }
+    // Description / value sheet for one day (also our own CSV export: section, field, value)
+    const day = {}; const found = new Set();
+    for (const r of rows) {
+      const cells = r.map(txt).filter((c) => c !== '');
+      if (cells.length < 2) continue;
+      const label = cells.length >= 3 && /^(receiving|dispatch|returns|safety)$/i.test(cells[0]) ? cells[1] : cells.slice(0, -1).join(' ');
+      const key = mapLabel(label); if (!key) continue;
+      if (putField(day, key, cells[cells.length - 1])) found.add(key);
+    }
+    if (found.size >= 2) return { kind: 'daily', day, found: [...found] };
+    return null;
+  }
+  function parseCsv(text) {
+    const delim = (text.split('\n')[0].match(/\t/g) || []).length > (text.split('\n')[0].match(/,/g) || []).length ? '\t' : ',';
+    const rows = []; let row = [], cur = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) { if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+      else if (c === '"') q = true; else if (c === delim) { row.push(cur); cur = ''; }
+      else if (c === '\n') { row.push(cur.replace(/\r$/, '')); rows.push(row); row = []; cur = ''; } else cur += c;
+    }
+    if (cur || row.length) { row.push(cur); rows.push(row); }
+    return rows;
+  }
+  async function readFile(file) {
+    const name = file.name.toLowerCase();
+    if (/\.(png|jpe?g|webp)$/.test(name)) return { image: true };
+    if (/\.(xlsx|xls|xlsm)$/.test(name)) {
+      if (!window.XLSX) throw new Error('The Excel reader didn’t load. Save the sheet as CSV and upload that.');
+      const wb = window.XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const sheets = wb.SheetNames.map((s) => ({ name: s, rows: window.XLSX.utils.sheet_to_json(wb.Sheets[s], { header: 1, raw: false, defval: '' }) }));
+      return { sheets, text: wb.SheetNames.map((s) => '## ' + s + '\n' + window.XLSX.utils.sheet_to_csv(wb.Sheets[s])).join('\n\n') };
+    }
+    const text = await file.text();
+    return { sheets: [{ name: file.name, rows: parseCsv(text) }], text };
+  }
+
+  async function addFiles(fileList) {
+    for (const file of fileList) {
+      const it = { id: ++itemSeq, file, name: file.name, status: 'reading', result: null, error: '', weekStart: mondayOf(upDate.value || todayIso()), date: upDate.value || todayIso(), wh: upWh.value, pickScope: 'day' };
+      items.push(it); renderUploadList();
+      try {
+        const data = await readFile(file);
+        it.raw = data;
+        if (data.image) { it.status = 'needs-ai'; }
+        else {
+          let res = null;
+          for (const sh of data.sheets) { res = parseRows(sh.rows); if (res) break; }
+          if (res) { it.result = res; it.status = 'ready'; } else it.status = 'needs-ai';
+        }
+      } catch (e) { it.status = 'error'; it.error = e && e.message ? e.message : 'Couldn’t read this file.'; }
+      renderUploadList();
+    }
+  }
+  const mondayOf = (iso) => { const d = dt(iso); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoOf(d); };
+  const addDays = (iso, k) => { const d = dt(iso); d.setDate(d.getDate() + k); return isoOf(d); };
+
+  async function readWithClaude(it) {
+    if (!sample) return;
+    it.status = 'ai'; renderUploadList();
+    const catalog = Object.entries(FIELD_INFO).map(([k, f]) => k + ': ' + f.label + (f.kind === 'yn' ? ' (Yes/No)' : f.kind === 'text' ? ' (text)' : ' (number)')).join('\n');
+    const instructions = 'You read a warehouse daily operations report and map it to fixed fields. Fields (key: meaning):\n' + catalog +
+      '\n\nReturn ONLY JSON: {"days":[{"weekday":"Monday"|null,"date":"YYYY-MM-DD"|null,"fields":{"<key>":value}}],"pickers":[{"name":"","boxes":0,"bins":0,"pickrate":0}]}. ' +
+      'One entry in days per day column in the report (use weekday when the report has day columns, else one entry). Only include fields whose value is clearly in the report; skip computed rates and targets. ' +
+      'pickers: only for a per-picker report (name, boxes, bin, pick rate); leave out accounts named MMS or Abadan. Use [] when absent.';
+    try {
+      let out;
+      if (it.raw && it.raw.image) out = await sample.json(instructions + '\n\nThe report is the attached image.', { images: [it.file], modelTier: 'complex' });
+      else out = await sample.json(instructions + '\n\nReport file "' + it.name + '":\n' + String(it.raw?.text || '').slice(0, 60000), { modelTier: 'complex' });
+      const dayList = Array.isArray(out?.days) ? out.days : [];
+      const pickers = (Array.isArray(out?.pickers) ? out.pickers : []).filter((p) => p && p.name && !/^(mms|abadan)\b/i.test(p.name))
+        .map((p) => ({ name: String(p.name), boxes: String(Number(p.boxes) || 0), bins: String(Number(p.bins) || 0), pickrate: String(Number(p.pickrate) || 0) }));
+      const weekly = dayList.some((d) => d && d.weekday && WEEKDAYS.includes(String(d.weekday).toLowerCase())) && dayList.length > 1;
+      const found = new Set();
+      const toDay = (fields) => { const day = {}; for (const [k, v] of Object.entries(fields || {})) if (FIELD_INFO[k] && putField(day, k, v)) found.add(k); return day; };
+      if (weekly) {
+        const byDay = WEEKDAYS.map(() => ({}));
+        for (const d of dayList) { const i = WEEKDAYS.indexOf(String(d.weekday || '').toLowerCase()); if (i >= 0) byDay[i] = toDay(d.fields); }
+        it.result = { kind: 'weekly', byDay, found: [...found] };
+      } else if (dayList.length && Object.keys(dayList[0].fields || {}).length) {
+        it.result = { kind: 'daily', day: toDay(dayList[0].fields), found: [...found] };
+        if (dayList[0].date && /^\d{4}-\d{2}-\d{2}$/.test(dayList[0].date)) it.date = dayList[0].date;
+        if (pickers.length) it.result.pickers = pickers;
+      } else if (pickers.length) it.result = { kind: 'picking', pickers, skipped: 0 };
+      if (it.result && (found.size || pickers.length)) { it.status = 'ready'; it.viaAi = true; }
+      else { it.status = 'error'; it.error = 'Claude couldn’t find any of the dashboard’s figures in this file.'; }
+    } catch (e) {
+      it.status = 'error';
+      it.error = e && e.code === 'not_granted' ? 'Reading with Claude wasn’t allowed in this view.' : e && e.code === 'rate_limited' ? 'Too many requests right now. Try again in a minute.' : 'Claude couldn’t read this file.';
+    }
+    renderUploadList();
+  }
+
+  // Dates and partial day records an item will write.
+  function itemTargets(it) {
+    const r = it.result; if (!r) return [];
+    if (r.kind === 'weekly') return r.byDay.map((d, i) => ({ date: addDays(it.weekStart, i), day: d })).filter((x) => Object.keys(x.day).length);
+    if (r.kind === 'daily') { const day = clone(r.day); if (r.pickers) day.pickers = r.pickers; return [{ date: it.date, day }]; }
+    if (r.kind === 'picking' && it.pickScope === 'day') return [{ date: it.date, day: { pickers: r.pickers } }];
+    return [];
+  }
+
+  async function commitItem(it) {
+    if (!db || it.status !== 'ready') return;
+    it.status = 'saving'; renderUploadList();
+    try {
+      const uid = user ? await user.id().catch(() => null) : null;
+      const dates = [];
+      if (it.result.kind === 'picking' && it.pickScope === 'month') {
+        const month = it.date.slice(0, 7);
+        const body = { month, warehouse: it.wh, pickers: it.result.pickers, savedAt: Date.now(), source: it.name };
+        if (uid) body.savedBy = uid;
+        await db.collection('picking').doc(month + '_' + it.wh).set(body);
+        it.savedNote = 'Saved as ' + it.wh + ' picking for ' + monthName(month) + '.';
+      } else {
+        for (const t of itemTargets(it)) {
+          const key = keyOf(t.date, it.wh);
+          const base = days.get(key)?.data ? clone(days.get(key).data) : blankDay();
+          for (const sec of ['receiving', 'dispatch', 'returns', 'safety']) if (t.day[sec]) base[sec] = Object.assign(base[sec] || {}, t.day[sec]);
+          if (t.day.pickers) base.pickers = t.day.pickers;
+          Object.assign(base, { date: t.date, warehouse: it.wh, savedAt: Date.now() });
+          if (uid) base.savedBy = uid;
+          await db.collection('days').doc(key).set(base);
+          dates.push(t.date);
+        }
+        it.savedNote = 'Added to ' + it.wh + ' · ' + dates.map((d) => dayMon(d)).join(', ') + '.';
+      }
+      const log = { filename: it.name, warehouse: it.wh, dates, kind: it.result.kind, fields: (it.result.found || []).length, pickers: (it.result.pickers || []).length, viaClaude: !!it.viaAi, savedAt: Date.now() };
+      if (it.result.kind === 'picking' && it.pickScope === 'month') log.month = it.date.slice(0, 7);
+      if (uid) log.savedBy = uid;
+      await db.collection('uploads').add(log).catch(() => {});
+      it.status = 'saved';
+      if (dates.length) { dWh = it.wh; dDate = dates[dates.length - 1]; remember(); }
+    } catch (e) { it.status = 'ready'; it.error = 'Couldn’t save. Check you can edit this page.'; }
+    render();
+  }
+
+  const KIND_LABEL = { weekly: 'Weekly sheet', daily: 'Daily report', picking: 'Task User Report (picking)' };
+  function renderUploadList() {
+    const box = $('#up-list');
+    box.replaceChildren(...items.map((it) => {
+      const card = el('div', 'up-item');
+      const head = el('div', 'up-head');
+      head.append(el('span', 'name', it.name));
+      const kindTxt = { reading: 'Reading…', ai: 'Claude is reading…', saving: 'Saving…', saved: 'Added', error: 'Couldn’t read', 'needs-ai': 'Format not recognised' }[it.status] || (KIND_LABEL[it.result?.kind] + (it.viaAi ? ' · read by Claude' : ''));
+      head.append(el('span', 'up-kind' + (it.status === 'error' || it.status === 'needs-ai' ? ' bad' : it.status === 'saved' ? ' done' : ''), kindTxt));
+      card.append(head);
+      if (it.status === 'saved') { card.append(el('div', 'up-prev', it.savedNote || 'Added.')); }
+      else if (it.status === 'error') card.append(el('div', 'up-prev', it.error));
+      else if (it.status === 'needs-ai') {
+        const p = el('div', 'up-prev');
+        p.append(el('span', '', it.raw?.image ? 'This is a picture of a report.' : 'This file isn’t in a layout the page knows (weekly sheet, Task User Report, or description and value columns).'));
+        if (sample) { const b = el('button', 'btn', 'Read it with Claude'); b.type = 'button'; b.addEventListener('click', () => readWithClaude(it)); const ra = el('div', 'row-actions'); ra.append(b); p.append(ra); }
+        else p.append(el('span', '', 'Upload it as Excel or CSV with a description column and a value column.'));
+        card.append(p);
+      } else if (it.status === 'ready' && it.result) {
+        const opts = el('div', 'up-opts');
+        const whSel = el('select'); whSel.id = 'up-' + it.id + '-wh'; for (const w of WAREHOUSES) whSel.append(new Option(w, w)); whSel.value = it.wh;
+        whSel.addEventListener('change', () => { it.wh = whSel.value; renderUploadList(); });
+        const wl = el('label', '', 'Warehouse '); wl.htmlFor = whSel.id; opts.append(wl, whSel);
+        if (it.result.kind === 'weekly') {
+          const di = el('input'); di.type = 'date'; di.id = 'up-' + it.id + '-wk'; di.value = it.weekStart;
+          di.addEventListener('change', () => { if (di.value) { it.weekStart = mondayOf(di.value); renderUploadList(); } });
+          const l = el('label', '', 'Week starting (Monday) '); l.htmlFor = di.id; opts.append(l, di);
+        } else {
+          const di = el('input'); di.type = 'date'; di.id = 'up-' + it.id + '-d'; di.value = it.date;
+          di.addEventListener('change', () => { if (di.value) { it.date = di.value; renderUploadList(); } });
+          const l = el('label', '', 'Date '); l.htmlFor = di.id; opts.append(l, di);
+          if (it.result.kind === 'picking') {
+            const sc = el('select'); sc.id = 'up-' + it.id + '-sc'; sc.append(new Option('This day only', 'day'), new Option('Whole month (' + monthName(it.date.slice(0, 7)) + ')', 'month')); sc.value = it.pickScope;
+            sc.addEventListener('change', () => { it.pickScope = sc.value; renderUploadList(); });
+            const l2 = el('label', '', 'Covers '); l2.htmlFor = sc.id; opts.append(l2, sc);
+          }
+        }
+        card.append(opts);
+        const prev = el('div', 'up-prev');
+        if (it.result.kind === 'picking') {
+          const top = it.result.pickers.slice().sort((a, b) => Number(b.pickrate) - Number(a.pickrate)).slice(0, 3).map((p) => p.name + ' ' + p.pickrate + '/hr').join(' · ');
+          prev.append(el('span', '', it.result.pickers.length + ' pickers' + (it.result.skipped ? ' (' + it.result.skipped + ' MMS/Abadan rows skipped)' : '') + '. Fastest: ' + top));
+        } else {
+          const targetsList = itemTargets(it);
+          prev.append(el('span', '', it.result.found.length + ' figures found' + (it.result.kind === 'weekly' ? ' across ' + targetsList.length + ' days: ' + targetsList.map((t) => wday(t.date) + ' ' + dayMon(t.date)).join(', ') : ' for ' + shortDate(it.date)) + '.'));
+          const ul = el('ul');
+          const sampleDay = it.result.kind === 'weekly' ? (targetsList[targetsList.length - 1]?.day || {}) : it.result.day;
+          for (const k of it.result.found.slice(0, 16)) {
+            const sec = FIELD_INFO[k].sec; const v = sampleDay[sec] && sampleDay[sec][k];
+            const li = el('li'); li.append(FIELD_INFO[k].label + (v != null ? ': ' : ''), ...(v != null ? [el('b', '', n(v) != null ? fmt(n(v)) : v)] : [])); ul.append(li);
+          }
+          prev.append(ul);
+          if (it.result.kind === 'weekly' && targetsList.length) prev.append(el('span', '', 'Values shown are for ' + wday(targetsList[targetsList.length - 1].date) + '.'));
+          const ex = it.result.kind === 'daily' ? itemTargets(it).filter((t) => days.has(keyOf(t.date, it.wh))) : itemTargets(it).filter((t) => days.has(keyOf(t.date, it.wh)));
+          if (ex.length) prev.append(el('span', '', 'Already saved days get these figures updated; their other figures stay.'));
+        }
+        if (it.error) prev.append(el('span', 'c-bad', it.error));
+        card.append(prev);
+        const ra = el('div', 'row-actions');
+        const add = el('button', 'btn primary', 'Add to dashboard'); add.type = 'button'; add.disabled = !db; add.addEventListener('click', () => commitItem(it));
+        const rm = el('button', 'btn', 'Remove'); rm.type = 'button'; rm.addEventListener('click', () => { items.splice(items.indexOf(it), 1); renderUploadList(); });
+        ra.append(add, rm); card.append(ra);
+      }
+      if (['saved', 'error', 'needs-ai'].includes(it.status)) {
+        const rm = el('button', 'x', '✕'); rm.type = 'button'; rm.setAttribute('aria-label', 'Dismiss ' + it.name);
+        rm.addEventListener('click', () => { items.splice(items.indexOf(it), 1); renderUploadList(); }); head.append(rm);
+      }
+      return card;
+    }));
+    const ready = items.filter((it) => it.status === 'ready');
+    $('#up-all').hidden = ready.length < 2;
+    $('#up-msg').textContent = !db && items.length ? 'Sign in to claude.ai to save uploads.' : '';
+  }
+  function renderUploadLog() {
+    const box = $('#up-log');
+    const recent = uploadsLog.slice(0, 8);
+    box.replaceChildren(...(recent.length ? [el('h3', '', 'Recently added')] : []), ...recent.map((u) => {
+      const d = el('div'); d.append(el('b', '', u.filename), el('span', '', u.warehouse + ' · ' + (u.month ? monthName(u.month) : (u.dates || []).map(dayMon).join(', '))), el('span', '', savedAt(u.savedAt)));
+      return d;
+    }));
+    const forDay = uploadsLog.filter((u) => u.warehouse === dWh && (u.dates || []).includes(dDate));
+    $('#d-files').textContent = forDay.length ? 'Reports for this day: ' + [...new Set(forDay.map((u) => u.filename))].join(', ') : '';
+  }
+
+  const upDate = $('#up-date'), upWh = $('#up-wh'), upFile = $('#up-file'), upDrop = $('#up-drop');
+  for (const w of WAREHOUSES) upWh.append(new Option(w, w));
+  upDate.value = todayIso(); upWh.value = dWh;
+  upFile.addEventListener('change', () => { addFiles([...upFile.files]); upFile.value = ''; });
+  upDrop.addEventListener('dragover', (e) => { e.preventDefault(); upDrop.classList.add('over'); });
+  upDrop.addEventListener('dragleave', () => upDrop.classList.remove('over'));
+  upDrop.addEventListener('drop', (e) => { e.preventDefault(); upDrop.classList.remove('over'); if (e.dataTransfer?.files?.length) addFiles([...e.dataTransfer.files]); });
+  $('#up-all').addEventListener('click', async () => { for (const it of items.filter((x) => x.status === 'ready')) await commitItem(it); });
+
   /* ===================== render & boot ===================== */
   function render() {
     hideTip();
     $('#view-dash').hidden = view !== 'dash';
     $('#view-entry').hidden = view !== 'entry';
-    if (view === 'dash') { renderDash(); renderPicking(); renderTargets(); } else renderEntry();
+    if (view === 'dash') { renderDash(); renderPicking(); renderTargets(); renderUploadLog(); if (!days.size && loaded && db) $('#upload').open = true; } else renderEntry();
   }
   for (const a of document.querySelectorAll('.nav a')) a.addEventListener('click', (e) => { const t = document.getElementById(a.getAttribute('href').slice(1)); if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth' }); } });
   let resizeT; window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (view === 'dash') renderDash(); }, 150); });
@@ -1027,6 +1397,8 @@ table.pkin input[type=number] { text-align: right; }
       render();
     }, () => { loaded = true; render(); });
     db.collection('picking').limit(500).onSnapshot((snap) => { reports = new Map(snap.docs.filter((x) => x.exists).map((x) => [x.id, x.data()])); render(); }, () => {});
+    db.collection('uploads').orderBy('savedAt', 'desc').limit(200).onSnapshot((snap) => { uploadsLog = snap.docs.filter((x) => x.exists).map((x) => x.data()); if (view === 'dash') renderUploadLog(); }, () => {});
+    window.claude.use('sample').then((s) => { sample = s; renderUploadList(); });
   })();
 })();
 </script>

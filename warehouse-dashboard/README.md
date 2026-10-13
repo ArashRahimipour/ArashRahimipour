@@ -65,3 +65,14 @@ in the page's database): receiving (VIC weekly-sheet rows plus palletizing,
 labels, QC, feeder and putaway), dispatch and replenishment, pickers pasted from
 the Task User Report (MMS and Abadan skipped), returns by reason, and safety.
 Every saved day is scored against shared, editable targets.
+
+### Uploading daily reports
+
+The dashboard's "Upload daily reports" box reads Excel (.xlsx/.xls), CSV and
+screenshots. It recognises the VIC weekly receiving sheet (Monday–Sunday
+columns; you pick the week's Monday), the Task User Report export (picker,
+boxes, bin, pick rate; a day or a whole month), and any sheet with a
+description column and a value column (feeder, putaway, dispatch,
+replenishment, returns, safety). Anything else, including screenshots, can be
+read by Claude after a click. Figures are merged into that date and
+warehouse; figures already saved for other activities are kept.
