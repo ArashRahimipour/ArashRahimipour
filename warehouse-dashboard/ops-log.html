@@ -216,16 +216,11 @@ table.pkin input[type=number] { text-align: right; }
       <p class="take" id="d-take">Loading saved days…</p>
       <p class="day-files" id="d-files"></p>
       <nav class="nav" aria-label="Sections">
-        <a class="chip" href="#receiving">Receiving</a><a class="chip" href="#dispatch">Dispatch</a><a class="chip" href="#history">Did the team hit target?</a><a class="chip" href="#picking">Picking</a><a class="chip" href="#returns">Returns</a><a class="chip" href="#safety">Safety</a>
+        <a class="chip" href="#receiving">Receiving</a><a class="chip" href="#dispatch">Dispatch</a><a class="chip" href="#picking">Picking</a><a class="chip" href="#returns">Returns</a><a class="chip" href="#history">Did the team hit target?</a><a class="chip" href="#safety">Safety</a>
       </nav>
     </header>
 
-    <details class="sec" id="upload">
-      <summary><h2>Upload reports</h2><span class="muted">Excel, CSV or screenshots · the dashboard fills in by itself</span></summary>
-      <div class="sec-body" id="up-main"></div>
-    </details>
-
-    <section class="tiles" id="d-summary" aria-label="Day summary"></section>
+    <section class="tiles" id="d-summary" aria-label="Summary"></section>
 
     <section class="section" id="receiving">
       <div class="section-head"><h2>Receiving</h2><p class="muted">Container to location: unload, palletize, label, QC, feed, put away. Rates are output per worked hour.</p></div>
@@ -244,30 +239,17 @@ table.pkin input[type=number] { text-align: right; }
         <p class="muted">Same rows as your weekly report. Green met target, red missed, blank not entered.</p>
         <div class="tbl-wrap"><table class="t sheet" id="d-sheet"><thead></thead><tbody></tbody></table></div>
       </div>
-    </section>
-
-    <section class="section" id="dispatch">
-      <div class="section-head"><h2>Dispatch</h2><p class="muted">Outbound boxes and volume per worked hour, and pallets replenished to pick faces by the two replenishers.</p></div>
-      <div class="tiles" id="d-dis"></div>
-      <details class="sec" id="upload-dispatch">
-        <summary><h3>Upload dispatch reports</h3><span class="muted">Weekly dispatch sheet · Task User Report from the ERP</span></summary>
-        <div class="sec-body" id="up-dis"></div>
+      <details class="sec" id="upload-receiving">
+        <summary><h3>Upload receiving reports</h3><span class="muted">Weekly receiving sheet · only changes receiving figures</span></summary>
+        <div class="sec-body" id="up-rec"></div>
       </details>
     </section>
 
-    <section class="section" id="history">
-      <div class="section-head"><h2>Did the team hit target?</h2><p class="muted">Each KPI on each saved day. Click a date to load that day.</p></div>
-      <div class="panel">
-        <div class="legend"><span><i style="background: color-mix(in srgb, var(--ok) 22%, transparent)"></i>Hit</span><span><i style="background: color-mix(in srgb, var(--bad) 24%, transparent)"></i>Missed</span></div>
-        <div class="tbl-wrap"><div class="matrix" id="d-matrix"></div></div>
-      </div>
-    </section>
-
-    <section class="section" id="picking">
-      <div class="section-head">
-        <h2>Picking</h2>
-        <p class="muted" id="pk-sub">Boxes per picking hour from the Task User Report.</p>
-      </div>
+    <section class="section" id="dispatch">
+      <div class="section-head"><h2>Dispatch</h2><p class="muted">Outbound boxes and volume per worked hour, pallets replenished by the two replenishers, and pick rate from the Task User Report.</p></div>
+      <div class="tiles" id="d-dis"></div>
+      <div class="section" id="picking">
+        <div class="section-head"><h3>Picking · Task User Report</h3><p class="muted" id="pk-sub">Boxes per picking hour from the Task User Report.</p></div>
       <div class="tiles" id="pk-tiles"></div>
       <div class="panel">
         <h3>Pick rate by week</h3>
@@ -286,6 +268,11 @@ table.pkin input[type=number] { text-align: right; }
           <th><button type="button" class="th-btn" data-sort="result">Result</button></th>
         </tr></thead><tbody></tbody></table></div>
       </div>
+      </div>
+      <details class="sec" id="upload-dispatch">
+        <summary><h3>Upload dispatch reports</h3><span class="muted">Weekly dispatch sheet · Task User Report · only changes dispatch, picking and returns</span></summary>
+        <div class="sec-body" id="up-dis"></div>
+      </details>
     </section>
 
     <section class="section" id="returns">
@@ -297,10 +284,22 @@ table.pkin input[type=number] { text-align: right; }
       </div>
     </section>
 
+    <section class="section" id="history">
+      <div class="section-head"><h2>Did the team hit target?</h2><p class="muted">Each KPI on each saved day. Click a date to load that day.</p></div>
+      <div class="panel">
+        <div class="legend"><span><i style="background: color-mix(in srgb, var(--ok) 22%, transparent)"></i>Hit</span><span><i style="background: color-mix(in srgb, var(--bad) 24%, transparent)"></i>Missed</span></div>
+        <div class="tbl-wrap"><div class="matrix" id="d-matrix"></div></div>
+      </div>
+    </section>
+
     <section class="section" id="safety">
       <div class="section-head"><h2>Safety</h2><p class="muted" id="d-safety-window"></p></div>
       <div class="tiles small" id="d-safety"></div>
       <div class="panel"><h3>Incidents and actions</h3><p class="notes" id="d-notes"></p></div>
+      <details class="sec" id="upload-safety">
+        <summary><h3>Upload safety reports</h3><span class="muted">Weekly safety sheet · only changes safety figures</span></summary>
+        <div class="sec-body" id="up-saf"></div>
+      </details>
     </section>
 
     <details class="sec" id="targets-sec">
@@ -672,6 +671,12 @@ table.pkin input[type=number] { text-align: right; }
     $('#d-dis').replaceChildren(kt('disp_box', 'Boxes/hr'), kt('disp_cbm', 'CBM/hr'), (() => {
       const k = B.replen;
       return tile('Replenishment pallets/hr', valText(k), k ? '/hr' : '', k ? 'Target ' + k.targetText + ' · ' + fmt(r2(k.value / 2)) + ' per replenisher · ' + fmt(n(D.replen_pallets)) + ' pallets' : 'Not entered', resPill(k));
+    })(), (() => {
+      const pf = pickingFor(dWh); const ps = pf.people.filter((p) => n(p.boxes) != null && n(p.pickrate));
+      if (!ps.length) return tile('Pick rate', '—', '', 'Upload the Task User Report below', pill('Not entered', 'na'));
+      const boxes = ps.reduce((s, p) => s + n(p.boxes), 0), hours = ps.reduce((s, p) => s + n(p.boxes) / n(p.pickrate), 0), rate = r2(boxes / hours);
+      const scored = ps.filter((p) => n(p.boxes) >= targets.pick_min_boxes), hitN = scored.filter((p) => n(p.pickrate) >= targets.pick_rate).length;
+      return tile('Pick rate', fmt(rate), 'boxes/hr', 'Target ' + targets.pick_rate + ' · ' + hitN + ' of ' + scored.length + ' pickers on target · from ' + pf.source, pill(rate >= targets.pick_rate ? 'Hit' : 'Missed', rate >= targets.pick_rate ? 'hit' : 'miss'));
     })(), tile('Boxes dispatched', fmt(n(D.boxes_dispatched)), '', n(D.cbm_dispatched) != null ? fmt(n(D.cbm_dispatched)) + ' CBM' : 'Total for the period'));
 
     drawMatrix(list);
@@ -1323,7 +1328,7 @@ table.pkin input[type=number] { text-align: right; }
     it.status = 'ai'; ui.renderList();
     const catalog = Object.entries(FIELD_INFO).map(([k, f]) => k + ': ' + f.label + (f.kind === 'yn' ? ' (Yes/No)' : f.kind === 'text' ? ' (text)' : ' (number)')).join('\n');
     const instructions = 'You read a warehouse daily operations report and map it to fixed fields. Fields (key: meaning):\n' + catalog +
-      (ui.ctx === 'dispatch' ? '\n\nThis report was uploaded under Dispatch: boxes, CBM, pallets, people and hours in it are dispatch figures unless it clearly says received.' : '') +
+      (ui.ctx === 'dispatch' ? '\n\nThis report was uploaded under Dispatch: boxes, CBM, pallets, people and hours in it are dispatch figures unless it clearly says received.' : ui.ctx ? '\n\nThis report was uploaded under ' + ui.ctx + '; only that section’s fields matter.' : '') +
       '\n\nReturn ONLY JSON: {"days":[{"weekday":"Monday"|null,"date":"YYYY-MM-DD"|null,"fields":{"<key>":value}}],"pickers":[{"name":"","boxes":0,"bins":0,"pickrate":0}]}. ' +
       'One entry in days per day column in the report (use weekday when the report has day columns, else one entry). Only include fields whose value is clearly in the report; skip computed rates and targets. ' +
       'pickers: only for a per-picker report (name, boxes, bin, pick rate); leave out accounts named MMS or Abadan; read every row shown. Use [] when absent. ' +
@@ -1359,7 +1364,7 @@ table.pkin input[type=number] { text-align: right; }
         if (ok(rep.date_from)) { it.date = rep.date_from; it.weekStart = mondayOf(rep.date_from); it.to = ok(rep.date_to) && rep.date_to >= rep.date_from ? rep.date_to : rep.date_from; }
         if (it.result && it.result.kind !== 'picking') it.to = it.date;
       }
-      if (it.result && (found.size || pickers.length)) { it.status = 'ready'; it.viaAi = true; }
+      if (it.result && (found.size || pickers.length)) { it.status = 'ready'; it.viaAi = true; restrict(it, ui); }
       else { it.status = 'error'; it.error = 'Claude couldn’t find any of the dashboard’s figures in this file.'; }
     } catch (e) {
       it.status = 'error';
@@ -1493,7 +1498,7 @@ table.pkin input[type=number] { text-align: right; }
       if (it.to < it.date) it.to = it.date;
       ui.items.push(it); pta.value = ''; pmsg.textContent = ''; ui.renderList();
     });
-    mount.append(intro, grid, quick, drop, list, allRow, pasteDet, tpl, log);
+    mount.append(...[intro, grid, quick, drop, list, allRow, opts.pickers ? pasteDet : null, tpl, log].filter(Boolean));
     Object.assign(ui, { from, to, whSel, list, all, msg, tpl, log });
 
     const addFiles = async (files) => {
@@ -1504,7 +1509,7 @@ table.pkin input[type=number] { text-align: right; }
         try {
           const data = await readFile(f); it.raw = data;
           if (data.image) it.status = 'needs-ai';
-          else { let res = null; for (const sh of data.sheets) { res = parseRows(sh.rows, ui.ctx); if (res) break; } if (res) { it.result = res; it.status = 'ready'; } else it.status = 'needs-ai'; }
+          else { let res = null; for (const sh of data.sheets) { res = parseRows(sh.rows, ui.ctx); if (res) break; } if (res) { it.result = res; it.status = 'ready'; restrict(it, ui); } else it.status = 'needs-ai'; }
         } catch (e) { it.status = 'error'; it.error = e && e.message ? e.message : 'Couldn’t read this file.'; }
         ui.renderList();
       }
@@ -1567,6 +1572,7 @@ table.pkin input[type=number] { text-align: right; }
               const li = el('li'); li.append(FIELD_INFO[k].label + (v != null ? ': ' : ''), ...(v != null ? [el('b', '', n(v) != null ? fmt(n(v)) : v)] : [])); ul.append(li);
             }
             pv.append(ul);
+            if (it.result.ignored) pv.append(el('span', '', it.result.ignored + ' figures for other sections were left out; upload the file in those sections for them.'));
             if (it.result.kind === 'weekly' && tl.length) pv.append(el('span', '', 'Values shown are for ' + wday(tl[tl.length - 1].date) + '.'));
             if (tl.some((t) => days.has(keyOf(t.date, it.wh)))) pv.append(el('span', '', 'Days already saved get these figures updated; their other figures stay.'));
           }
@@ -1651,20 +1657,35 @@ table.pkin input[type=number] { text-align: right; }
     return lines.map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
   };
 
-  makeUploader($('#up-main'), { prefix: 'up', ctx: null,
-    intro: 'Drop each activity’s reports: the weekly receiving sheet, dispatch, replenishment, feeder, putaway, returns or safety reports, or the Task User Report. Each file is read, you check what was found, and it’s added to that period and warehouse.',
-    dropHint: '.xlsx · .xls · .csv · screenshots (.png, .jpg)', templates: [['receiving', 'Receiving'], ['dispatch', 'Dispatch and returns'], ['safety', 'Safety']], logFilter: () => true });
-  makeUploader($('#up-dis'), { prefix: 'ud', ctx: 'dispatch',
-    intro: 'Upload the weekly dispatch sheet (orders, boxes, CBM, pallets, people, man-hours, replenishment and returns) and the Task User Report from the ERP. Rows without a section heading are read as dispatch.',
-    dropHint: 'Weekly dispatch sheet or Task User Report · .xlsx · .xls · .csv · screenshots', templates: [['dispatch', 'Dispatch and returns weekly sheet']],
-    logFilter: (u) => u.area === 'dispatch' || u.kind === 'picking' || (u.writes || []).some((w) => (w.fields || []).some((k) => ['dispatch', 'returns'].includes(FIELD_INFO[k]?.sec))) });
+  // Keep only the figures this box is for; a report's other sections are ignored here.
+  function restrict(it, ui) {
+    const keep = ui.opts.sections, r = it.result; if (!keep || !r) return;
+    const cut = (day) => { const o = {}; for (const s of keep) if (day[s] && Object.keys(day[s]).length) o[s] = day[s]; return o; };
+    if (r.kind === 'picking') { if (!ui.opts.pickers) { it.status = 'error'; it.error = 'This is a Task User Report. Upload it in the Dispatch section.'; } return; }
+    if (r.kind === 'weekly') r.byDay = r.byDay.map(cut); else r.day = cut(r.day);
+    if (!ui.opts.pickers) delete r.pickers;
+    const before = r.found.length;
+    r.found = r.found.filter((k) => keep.includes(FIELD_INFO[k]?.sec));
+    r.ignored = before - r.found.length;
+    if (!r.found.length && !(r.pickers || []).length) { it.status = 'error'; it.error = 'No ' + ui.opts.area + ' figures in this file' + (before ? ' (it has ' + before + ' figures for other sections; upload it in those sections)' : '') + '.'; }
+  }
+  const legacyArea = (u) => u.area && u.area !== 'all' ? u.area : u.kind === 'picking' ? 'dispatch' : 'receiving';
+  makeUploader($('#up-rec'), { prefix: 'ur', ctx: 'receiving', area: 'receiving', sections: ['receiving'], pickers: false,
+    intro: 'Upload the weekly receiving sheet (containers, unloading hours, boxes, CBM, SKUs, checks, palletizing, labels, QC, feeder, putaway). Only receiving figures are saved from here; anything else in the file is left out.',
+    dropHint: 'Weekly receiving sheet · .xlsx · .xls · .csv · screenshots', templates: [['receiving', 'Receiving weekly sheet']], logFilter: (u) => legacyArea(u) === 'receiving' });
+  makeUploader($('#up-dis'), { prefix: 'ud', ctx: 'dispatch', area: 'dispatch', sections: ['dispatch', 'returns'], pickers: true,
+    intro: 'Upload the weekly dispatch sheet (orders, boxes, CBM, pallets, people, man-hours, replenishment and returns) and the Task User Report from the ERP. Only dispatch, picking and returns figures are saved from here.',
+    dropHint: 'Weekly dispatch sheet or Task User Report · .xlsx · .xls · .csv · screenshots', templates: [['dispatch', 'Dispatch and returns weekly sheet']], logFilter: (u) => legacyArea(u) === 'dispatch' });
+  makeUploader($('#up-saf'), { prefix: 'us', ctx: 'safety', area: 'safety', sections: ['safety'], pickers: false,
+    intro: 'Upload the weekly safety sheet (injuries, first aid, near misses, unsafe acts, forklift checks, PPE, housekeeping, toolbox talks). Only safety figures are saved from here.',
+    dropHint: 'Weekly safety sheet · .xlsx · .xls · .csv · screenshots', templates: [['safety', 'Safety weekly sheet']], logFilter: (u) => legacyArea(u) === 'safety' });
 
   /* ===================== render & boot ===================== */
   function render() {
     hideTip();
     $('#view-dash').hidden = view !== 'dash';
     $('#view-entry').hidden = view !== 'entry';
-    if (view === 'dash') { renderDash(); renderPicking(); renderTargets(); renderUploadLog(); if (!days.size && loaded && db) $('#upload').open = true; } else renderEntry();
+    if (view === 'dash') { renderDash(); renderPicking(); renderTargets(); renderUploadLog(); } else renderEntry();
   }
   for (const a of document.querySelectorAll('.nav a')) a.addEventListener('click', (e) => { const t = document.getElementById(a.getAttribute('href').slice(1)); if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth' }); } });
   let resizeT; window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (view === 'dash') renderDash(); }, 150); });
