@@ -221,26 +221,8 @@ table.pkin input[type=number] { text-align: right; }
     </header>
 
     <details class="sec" id="upload">
-      <summary><h2>Upload daily reports</h2><span class="muted">Excel, CSV or screenshots · the dashboard fills in by itself</span></summary>
-      <div class="sec-body">
-        <p class="muted">Drop each activity's report for the day: the weekly receiving sheet, the Task User Report, dispatch, replenishment, feeder, putaway, returns or safety reports. Each file is read, you check what was found, and it's added to that day and warehouse.</p>
-        <div class="grid">
-          <div class="f"><label for="up-from">Report from</label><input id="up-from" type="date" min="2020-01-01" max="2099-12-31"></div>
-          <div class="f"><label for="up-to">Report to</label><input id="up-to" type="date" min="2020-01-01" max="2099-12-31"></div>
-          <div class="f"><label for="up-wh">Warehouse</label><select id="up-wh"></select></div>
-        </div>
-        <div class="row-actions"><span class="muted">Report covers:</span><div class="seg" id="up-quick"></div></div>
-        <label class="drop" id="up-drop" for="up-file">
-          <input id="up-file" type="file" multiple accept=".csv,.tsv,.txt,.xlsx,.xls,.xlsm,.png,.jpg,.jpeg,.webp">
-          <span><b>Choose files</b> or drop them here</span>
-          <span>.xlsx · .xls · .csv · screenshots (.png, .jpg)</span>
-        </label>
-        <div class="up-list" id="up-list"></div>
-        <div class="row-actions"><button class="btn primary" id="up-all" type="button" hidden>Add all to dashboard</button><span class="state" id="up-msg"></span></div>
-        <div class="row-actions" id="up-templates" hidden><span class="muted">Weekly sheet templates (open in Excel, fill in, upload):</span>
-          <button class="btn" type="button" data-tpl="receiving">Receiving</button><button class="btn" type="button" data-tpl="dispatch">Dispatch and returns</button><button class="btn" type="button" data-tpl="safety">Safety</button></div>
-        <div class="up-log" id="up-log"></div>
-      </div>
+      <summary><h2>Upload reports</h2><span class="muted">Excel, CSV or screenshots · the dashboard fills in by itself</span></summary>
+      <div class="sec-body" id="up-main"></div>
     </details>
 
     <section class="tiles" id="d-summary" aria-label="Day summary"></section>
@@ -267,6 +249,10 @@ table.pkin input[type=number] { text-align: right; }
     <section class="section" id="dispatch">
       <div class="section-head"><h2>Dispatch</h2><p class="muted">Outbound boxes and volume per worked hour, and pallets replenished to pick faces by the two replenishers.</p></div>
       <div class="tiles" id="d-dis"></div>
+      <details class="sec" id="upload-dispatch">
+        <summary><h3>Upload dispatch reports</h3><span class="muted">Weekly dispatch sheet · Task User Report from the ERP</span></summary>
+        <div class="sec-body" id="up-dis"></div>
+      </details>
     </section>
 
     <section class="section" id="history">
@@ -1237,7 +1223,7 @@ table.pkin input[type=number] { text-align: right; }
   const putField = (day, key, raw) => { const v = cleanValue(key, raw); if (v == null) return false; const sec = FIELD_INFO[key].sec; day[sec] = day[sec] || {}; day[sec][key] = v; return true; };
 
   // Spreadsheet/CSV rows -> one of: weekly sheet, picking report, key/value day sheet.
-  function parseRows(rows) {
+  function parseRows(rows, defCtx) {
     const txt = (c) => (c == null ? '' : String(c).trim());
     // Task User Report
     for (let i = 0; i < Math.min(rows.length, 30); i++) {
@@ -1263,7 +1249,7 @@ table.pkin input[type=number] { text-align: right; }
         const first = Math.min(...cols.filter((c) => c >= 0));
         const byDay = WEEKDAYS.map(() => ({}));
         const found = new Set();
-        let ctx = sectionOf(rows.slice(0, i + 1).flat().map(txt).join(' '));
+        let ctx = sectionOf(rows.slice(0, i + 1).flat().map(txt).join(' ')) || defCtx || null;
         for (const r of rows.slice(i + 1)) {
           const label = r.slice(0, first).map(txt).filter(Boolean).join(' ');
           const sec = sectionOf(label, true); if (sec) { ctx = sec; continue; }
@@ -1274,7 +1260,7 @@ table.pkin input[type=number] { text-align: right; }
       }
     }
     // Description / value sheet for one day (also our own CSV export: section, field, value)
-    const day = {}; const found = new Set(); let ctx = null;
+    const day = {}; const found = new Set(); let ctx = defCtx || null;
     for (const r of rows) {
       const cells = r.map(txt).filter((c) => c !== '');
       if (cells.length === 1) { const sec = sectionOf(cells[0], true); if (sec) ctx = sec; continue; }
@@ -1312,30 +1298,12 @@ table.pkin input[type=number] { text-align: right; }
     return { sheets: [{ name: file.name, rows: parseCsv(text) }], text };
   }
 
-  async function addFiles(fileList) {
-    for (const file of fileList) {
-      const it = { id: ++itemSeq, file, name: file.name, status: 'reading', result: null, error: '', weekStart: mondayOf(upFrom.value || todayIso()), date: upFrom.value || todayIso(), to: upTo.value || upFrom.value || todayIso(), wh: upWh.value };
-      if (it.to < it.date) it.to = it.date;
-      items.push(it); renderUploadList();
-      try {
-        const data = await readFile(file);
-        it.raw = data;
-        if (data.image) { it.status = 'needs-ai'; }
-        else {
-          let res = null;
-          for (const sh of data.sheets) { res = parseRows(sh.rows); if (res) break; }
-          if (res) { it.result = res; it.status = 'ready'; } else it.status = 'needs-ai';
-        }
-      } catch (e) { it.status = 'error'; it.error = e && e.message ? e.message : 'Couldn’t read this file.'; }
-      renderUploadList();
-    }
-  }
-
-  async function readWithClaude(it) {
+  async function readWithClaude(it, ui) {
     if (!sample) return;
-    it.status = 'ai'; renderUploadList();
+    it.status = 'ai'; ui.renderList();
     const catalog = Object.entries(FIELD_INFO).map(([k, f]) => k + ': ' + f.label + (f.kind === 'yn' ? ' (Yes/No)' : f.kind === 'text' ? ' (text)' : ' (number)')).join('\n');
     const instructions = 'You read a warehouse daily operations report and map it to fixed fields. Fields (key: meaning):\n' + catalog +
+      (ui.ctx === 'dispatch' ? '\n\nThis report was uploaded under Dispatch: boxes, CBM, pallets, people and hours in it are dispatch figures unless it clearly says received.' : '') +
       '\n\nReturn ONLY JSON: {"days":[{"weekday":"Monday"|null,"date":"YYYY-MM-DD"|null,"fields":{"<key>":value}}],"pickers":[{"name":"","boxes":0,"bins":0,"pickrate":0}]}. ' +
       'One entry in days per day column in the report (use weekday when the report has day columns, else one entry). Only include fields whose value is clearly in the report; skip computed rates and targets. ' +
       'pickers: only for a per-picker report (name, boxes, bin, pick rate); leave out accounts named MMS or Abadan. Use [] when absent.';
@@ -1355,7 +1323,7 @@ table.pkin input[type=number] { text-align: right; }
         it.result = { kind: 'weekly', byDay, found: [...found] };
       } else if (dayList.length && Object.keys(dayList[0].fields || {}).length) {
         it.result = { kind: 'daily', day: toDay(dayList[0].fields), found: [...found] };
-        if (dayList[0].date && /^\d{4}-\d{2}-\d{2}$/.test(dayList[0].date)) it.date = dayList[0].date;
+        if (dayList[0].date && /^\d{4}-\d{2}-\d{2}$/.test(dayList[0].date)) { it.date = dayList[0].date; it.to = it.date; }
         if (pickers.length) it.result.pickers = pickers;
       } else if (pickers.length) it.result = { kind: 'picking', pickers, skipped: 0 };
       if (it.result && (found.size || pickers.length)) { it.status = 'ready'; it.viaAi = true; }
@@ -1364,7 +1332,7 @@ table.pkin input[type=number] { text-align: right; }
       it.status = 'error';
       it.error = e && e.code === 'not_granted' ? 'Reading with Claude wasn’t allowed in this view.' : e && e.code === 'rate_limited' ? 'Too many requests right now. Try again in a minute.' : 'Claude couldn’t read this file.';
     }
-    renderUploadList();
+    ui.renderList();
   }
 
   // Dates and partial day records an item will write.
@@ -1376,146 +1344,236 @@ table.pkin input[type=number] { text-align: right; }
     return [];
   }
 
-  async function commitItem(it) {
+  async function commitItem(it, ui) {
     if (!db || it.status !== 'ready') return;
-    it.status = 'saving'; renderUploadList();
+    it.status = 'saving'; ui.renderList();
     try {
       const uid = user ? await user.id().catch(() => null) : null;
-      const dates = [];
+      const dates = [], writes = [];
+      let pickingDoc = null;
       const ranged = it.result.kind === 'picking' && it.to !== it.date;
       if (ranged) {
+        pickingDoc = it.date + '_' + it.to + '_' + it.wh;
         const body = { from: it.date, to: it.to, warehouse: it.wh, pickers: it.result.pickers, savedAt: Date.now(), source: it.name };
         if (uid) body.savedBy = uid;
-        await db.collection('picking').doc(it.date + '_' + it.to + '_' + it.wh).set(body);
+        await db.collection('picking').doc(pickingDoc).set(body);
         it.savedNote = 'Saved as ' + it.wh + ' picking for ' + rangeLabel(it.date, it.to) + '.';
       } else {
         for (const t of itemTargets(it)) {
           const key = keyOf(t.date, it.wh);
           const base = days.get(key)?.data ? clone(days.get(key).data) : blankDay();
-          for (const sec of ['receiving', 'dispatch', 'returns', 'safety']) if (t.day[sec]) base[sec] = Object.assign(base[sec] || {}, t.day[sec]);
+          const fields = [];
+          for (const sec of ['receiving', 'dispatch', 'returns', 'safety']) if (t.day[sec]) { base[sec] = Object.assign(base[sec] || {}, t.day[sec]); fields.push(...Object.keys(t.day[sec])); }
           if (t.day.pickers) base.pickers = t.day.pickers;
           Object.assign(base, { date: t.date, warehouse: it.wh, savedAt: Date.now() });
           if (uid) base.savedBy = uid;
           await db.collection('days').doc(key).set(base);
-          dates.push(t.date);
+          dates.push(t.date); writes.push({ date: t.date, fields, pickers: !!t.day.pickers });
         }
         it.savedNote = 'Added to ' + it.wh + ' · ' + dates.map((d) => dayMon(d)).join(', ') + '.';
       }
-      const log = { filename: it.name, warehouse: it.wh, dates, kind: it.result.kind, fields: (it.result.found || []).length, pickers: (it.result.pickers || []).length, viaClaude: !!it.viaAi, savedAt: Date.now() };
-      if (ranged) { log.from = it.date; log.to = it.to; }
+      const log = { filename: it.name, warehouse: it.wh, dates, writes, area: ui.ctx || 'all', kind: it.result.kind, fields: (it.result.found || []).length, pickers: (it.result.pickers || []).length, viaClaude: !!it.viaAi, savedAt: Date.now() };
+      if (ranged) { log.from = it.date; log.to = it.to; log.pickingDoc = pickingDoc; }
       if (uid) log.savedBy = uid;
       await db.collection('uploads').add(log).catch(() => {});
       it.status = 'saved';
       dWh = it.wh; remember();
       if (ranged) { pFrom = it.date; pTo = it.to; pPreset = 'custom'; periodTouched = true; }
-      else if (dates.length) { if (dates.length > 1) { pFrom = dates[0] < mondayOf(dates[0]) ? dates[0] : mondayOf(dates[0]); pTo = addDays(pFrom, 6); pPreset = 'custom'; periodTouched = true; } else focusDate(dates[0]); }
+      else if (dates.length) { if (dates.length > 1) { pFrom = mondayOf(dates[0]); pTo = addDays(pFrom, 6); pPreset = 'custom'; periodTouched = true; } else focusDate(dates[0]); }
     } catch (e) { it.status = 'ready'; it.error = 'Couldn’t save. Check you can edit this page.'; }
     render();
   }
 
-  const KIND_LABEL = { weekly: 'Weekly sheet', daily: 'Daily report', picking: 'Task User Report (picking)' };
-  function renderUploadList() {
-    const box = $('#up-list');
-    box.replaceChildren(...items.map((it) => {
-      const card = el('div', 'up-item');
-      const head = el('div', 'up-head');
-      head.append(el('span', 'name', it.name));
-      const kindTxt = { reading: 'Reading…', ai: 'Claude is reading…', saving: 'Saving…', saved: 'Added', error: 'Couldn’t read', 'needs-ai': 'Format not recognised' }[it.status] || (KIND_LABEL[it.result?.kind] + (it.viaAi ? ' · read by Claude' : ''));
-      head.append(el('span', 'up-kind' + (it.status === 'error' || it.status === 'needs-ai' ? ' bad' : it.status === 'saved' ? ' done' : ''), kindTxt));
-      card.append(head);
-      if (it.status === 'saved') { card.append(el('div', 'up-prev', it.savedNote || 'Added.')); }
-      else if (it.status === 'error') card.append(el('div', 'up-prev', it.error));
-      else if (it.status === 'needs-ai') {
-        const p = el('div', 'up-prev');
-        p.append(el('span', '', it.raw?.image ? 'This is a picture of a report.' : 'This file isn’t in a layout the page knows (weekly sheet, Task User Report, or description and value columns).'));
-        if (sample) { const b = el('button', 'btn', 'Read it with Claude'); b.type = 'button'; b.addEventListener('click', () => readWithClaude(it)); const ra = el('div', 'row-actions'); ra.append(b); p.append(ra); }
-        else p.append(el('span', '', 'Upload it as Excel or CSV with a description column and a value column.'));
-        card.append(p);
-      } else if (it.status === 'ready' && it.result) {
-        const opts = el('div', 'up-opts');
-        const whSel = el('select'); whSel.id = 'up-' + it.id + '-wh'; for (const w of WAREHOUSES) whSel.append(new Option(w, w)); whSel.value = it.wh;
-        whSel.addEventListener('change', () => { it.wh = whSel.value; renderUploadList(); });
-        const wl = el('label', '', 'Warehouse '); wl.htmlFor = whSel.id; opts.append(wl, whSel);
-        if (it.result.kind === 'weekly') {
-          const di = el('input'); di.type = 'date'; di.id = 'up-' + it.id + '-wk'; di.value = it.weekStart;
-          di.addEventListener('change', () => { if (di.value) { it.weekStart = mondayOf(di.value); renderUploadList(); } });
-          const l = el('label', '', 'Week starting (Monday) '); l.htmlFor = di.id; opts.append(l, di);
-        } else {
-          const di = el('input'); di.type = 'date'; di.id = 'up-' + it.id + '-d'; di.value = it.date;
-          di.addEventListener('change', () => { if (di.value) { it.date = di.value; if (it.to < it.date || it.result.kind !== 'picking') it.to = it.date; renderUploadList(); } });
-          const l = el('label', '', it.result.kind === 'picking' ? 'From ' : 'Date '); l.htmlFor = di.id; opts.append(l, di);
-          if (it.result.kind === 'picking') {
-            const d2 = el('input'); d2.type = 'date'; d2.id = 'up-' + it.id + '-to'; d2.value = it.to;
-            d2.addEventListener('change', () => { if (d2.value) { it.to = d2.value < it.date ? it.date : d2.value; renderUploadList(); } });
-            const l2 = el('label', '', 'To '); l2.htmlFor = d2.id; opts.append(l2, d2);
-            opts.append(el('span', 'muted', it.to === it.date ? 'Saved on that day' : 'Saved as a report for ' + datesBetween(it.date, it.to).length + ' days'));
-          }
-        }
-        card.append(opts);
-        const prev = el('div', 'up-prev');
-        if (it.result.kind === 'picking') {
-          const top = it.result.pickers.slice().sort((a, b) => Number(b.pickrate) - Number(a.pickrate)).slice(0, 3).map((p) => p.name + ' ' + p.pickrate + '/hr').join(' · ');
-          prev.append(el('span', '', it.result.pickers.length + ' pickers' + (it.result.skipped ? ' (' + it.result.skipped + ' MMS/Abadan rows skipped)' : '') + '. Fastest: ' + top));
-        } else {
-          const targetsList = itemTargets(it);
-          prev.append(el('span', '', it.result.found.length + ' figures found' + (it.result.kind === 'weekly' ? ' across ' + targetsList.length + ' days: ' + targetsList.map((t) => wday(t.date) + ' ' + dayMon(t.date)).join(', ') : ' for ' + shortDate(it.date)) + '.'));
-          const ul = el('ul');
-          const sampleDay = it.result.kind === 'weekly' ? (targetsList[targetsList.length - 1]?.day || {}) : it.result.day;
-          for (const k of it.result.found.slice(0, 16)) {
-            const sec = FIELD_INFO[k].sec; const v = sampleDay[sec] && sampleDay[sec][k];
-            const li = el('li'); li.append(FIELD_INFO[k].label + (v != null ? ': ' : ''), ...(v != null ? [el('b', '', n(v) != null ? fmt(n(v)) : v)] : [])); ul.append(li);
-          }
-          prev.append(ul);
-          if (it.result.kind === 'weekly' && targetsList.length) prev.append(el('span', '', 'Values shown are for ' + wday(targetsList[targetsList.length - 1].date) + '.'));
-          const ex = it.result.kind === 'daily' ? itemTargets(it).filter((t) => days.has(keyOf(t.date, it.wh))) : itemTargets(it).filter((t) => days.has(keyOf(t.date, it.wh)));
-          if (ex.length) prev.append(el('span', '', 'Already saved days get these figures updated; their other figures stay.'));
-        }
-        if (it.error) prev.append(el('span', 'c-bad', it.error));
-        card.append(prev);
-        const ra = el('div', 'row-actions');
-        const add = el('button', 'btn primary', 'Add to dashboard'); add.type = 'button'; add.disabled = !db; add.addEventListener('click', () => commitItem(it));
-        const rm = el('button', 'btn', 'Remove'); rm.type = 'button'; rm.addEventListener('click', () => { items.splice(items.indexOf(it), 1); renderUploadList(); });
-        ra.append(add, rm); card.append(ra);
+  // Remove everything one upload added. Older uploads (before this was tracked) remove their whole days.
+  async function deleteUpload(u) {
+    const wh = u.warehouse;
+    if (u.pickingDoc || (u.from && u.to && u.kind === 'picking')) await db.collection('picking').doc(u.pickingDoc || u.from + '_' + u.to + '_' + wh).delete();
+    if (Array.isArray(u.writes)) {
+      for (const w of u.writes) {
+        const key = keyOf(w.date, wh); const cur = days.get(key)?.data; if (!cur) continue;
+        const base = clone(cur);
+        for (const k of w.fields || []) { const sec = FIELD_INFO[k]?.sec; if (sec && base[sec]) delete base[sec][k]; }
+        if (w.pickers) base.pickers = [];
+        const empty = ['receiving', 'dispatch', 'returns', 'safety'].every((s) => !Object.keys(base[s] || {}).length) && !(base.pickers || []).length;
+        if (empty) await db.collection('days').doc(key).delete();
+        else { base.savedAt = Date.now(); await db.collection('days').doc(key).set(base); }
       }
-      if (['saved', 'error', 'needs-ai'].includes(it.status)) {
-        const rm = el('button', 'x', '✕'); rm.type = 'button'; rm.setAttribute('aria-label', 'Dismiss ' + it.name);
-        rm.addEventListener('click', () => { items.splice(items.indexOf(it), 1); renderUploadList(); }); head.append(rm);
-      }
-      return card;
-    }));
-    const ready = items.filter((it) => it.status === 'ready');
-    $('#up-all').hidden = ready.length < 2;
-    $('#up-msg').textContent = !db && items.length ? 'Sign in to claude.ai to save uploads.' : '';
+    } else for (const d of u.dates || []) await db.collection('days').doc(keyOf(d, wh)).delete();
+    if (u.id) await db.collection('uploads').doc(u.id).delete();
   }
-  function renderUploadLog() {
-    const box = $('#up-log');
-    const recent = uploadsLog.slice(0, 8);
-    box.replaceChildren(...(recent.length ? [el('h3', '', 'Recently added')] : []), ...recent.map((u) => {
-      const d = el('div'); d.append(el('b', '', u.filename), el('span', '', u.warehouse + ' · ' + (u.from ? rangeLabel(u.from, u.to) : u.month ? monthName(u.month) : (u.dates || []).map(dayMon).join(', '))), el('span', '', savedAt(u.savedAt)));
-      return d;
-    }));
+  const isLegacy = (u) => !Array.isArray(u.writes) && !u.pickingDoc && (u.dates || []).length;
+  const usedElsewhere = (u) => isLegacy(u) && uploadsLog.some((x) => x.id !== u.id && x.warehouse === u.warehouse && (x.dates || []).some((d) => (u.dates || []).includes(d)) && !(x.filename === u.filename));
+
+  const KIND_LABEL = { weekly: 'Weekly sheet', daily: 'Daily report', picking: 'Task User Report (picking)' };
+  const uploaders = [];
+  let pendingDelete = null, deleteMsg = '';
+  function makeUploader(mount, opts) {
+    const p = opts.prefix;
+    const ui = { ctx: opts.ctx || null, items: [], opts };
+    mount.innerHTML = '';
+    const intro = el('p', 'muted', opts.intro);
+    const grid = el('div', 'grid');
+    const mk = (id, label, tag, type) => { const f = el('div', 'f'); const l = el('label', '', label); l.htmlFor = p + '-' + id; const i = el(tag); i.id = p + '-' + id; if (type) { i.type = type; i.min = '2020-01-01'; i.max = '2099-12-31'; } f.append(l, i); grid.append(f); return i; };
+    const from = mk('from', 'Report from', 'input', 'date'), to = mk('to', 'Report to', 'input', 'date'), whSel = mk('wh', 'Warehouse', 'select');
+    for (const w of WAREHOUSES) whSel.append(new Option(w, w));
+    from.value = todayIso(); to.value = todayIso(); whSel.value = dWh;
+    from.addEventListener('change', () => { if (from.value && (!to.value || to.value < from.value)) to.value = from.value; });
+    const quick = el('div', 'row-actions'); quick.append(el('span', 'muted', 'Report covers:'));
+    const seg = el('div', 'seg');
+    const Q = { today: 'Today', yesterday: 'Yesterday', week: 'This week', lastweek: 'Last week', period: 'Period shown above' };
+    for (const [q, label] of Object.entries(Q)) {
+      const b = el('button', 'chip', label); b.type = 'button';
+      b.addEventListener('click', () => { const t = todayIso(); const [a, c] = q === 'today' ? [t, t] : q === 'yesterday' ? [addDays(t, -1), addDays(t, -1)] : q === 'week' ? weekOf(t) : q === 'lastweek' ? weekOf(addDays(t, -7)) : [pFrom, pTo]; from.value = a; to.value = c; });
+      seg.append(b);
+    }
+    quick.append(seg);
+    const drop = el('label', 'drop'); drop.htmlFor = p + '-file';
+    const file = el('input'); file.type = 'file'; file.multiple = true; file.id = p + '-file'; file.accept = '.csv,.tsv,.txt,.xlsx,.xls,.xlsm,.png,.jpg,.jpeg,.webp';
+    const s1 = el('span'); s1.append(el('b', '', 'Choose files'), ' or drop them here');
+    drop.append(file, s1, el('span', '', opts.dropHint));
+    const list = el('div', 'up-list');
+    const allRow = el('div', 'row-actions'); const all = el('button', 'btn primary', 'Add all to dashboard'); all.type = 'button'; all.hidden = true; const msg = el('span', 'state', ''); allRow.append(all, msg);
+    const tpl = el('div', 'row-actions'); tpl.hidden = true; tpl.append(el('span', 'muted', 'Weekly sheet templates (open in Excel, fill in, upload):'));
+    for (const [k, label] of opts.templates) {
+      const b = el('button', 'btn', label); b.type = 'button';
+      b.addEventListener('click', async () => { try { await downloads.save({ filename: whSel.value.toLowerCase() + '-weekly-' + k + '.csv', data: templateCsv(k, whSel.value) }); } catch (e) { if (e && e.code !== 'declined') msg.textContent = 'Couldn’t prepare the template.'; } });
+      tpl.append(b);
+    }
+    const log = el('div', 'up-log');
+    mount.append(intro, grid, quick, drop, list, allRow, tpl, log);
+    Object.assign(ui, { from, to, whSel, list, all, msg, tpl, log });
+
+    const addFiles = async (files) => {
+      for (const f of files) {
+        const it = { id: ++itemSeq, file: f, name: f.name, status: 'reading', result: null, error: '', weekStart: mondayOf(from.value || todayIso()), date: from.value || todayIso(), to: to.value || from.value || todayIso(), wh: whSel.value };
+        if (it.to < it.date) it.to = it.date;
+        ui.items.push(it); ui.renderList();
+        try {
+          const data = await readFile(f); it.raw = data;
+          if (data.image) it.status = 'needs-ai';
+          else { let res = null; for (const sh of data.sheets) { res = parseRows(sh.rows, ui.ctx); if (res) break; } if (res) { it.result = res; it.status = 'ready'; } else it.status = 'needs-ai'; }
+        } catch (e) { it.status = 'error'; it.error = e && e.message ? e.message : 'Couldn’t read this file.'; }
+        ui.renderList();
+      }
+    };
+    file.addEventListener('change', () => { addFiles([...file.files]); file.value = ''; });
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+    drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer?.files?.length) addFiles([...e.dataTransfer.files]); });
+    all.addEventListener('click', async () => { for (const it of ui.items.filter((x) => x.status === 'ready')) await commitItem(it, ui); });
+
+    ui.renderList = () => {
+      const items = ui.items;
+      list.replaceChildren(...items.map((it) => {
+        const card = el('div', 'up-item');
+        const head = el('div', 'up-head');
+        head.append(el('span', 'name', it.name));
+        const kindTxt = { reading: 'Reading…', ai: 'Claude is reading…', saving: 'Saving…', saved: 'Added', error: 'Couldn’t read', 'needs-ai': 'Format not recognised' }[it.status] || (KIND_LABEL[it.result?.kind] + (it.viaAi ? ' · read by Claude' : ''));
+        head.append(el('span', 'up-kind' + (it.status === 'error' || it.status === 'needs-ai' ? ' bad' : it.status === 'saved' ? ' done' : ''), kindTxt));
+        card.append(head);
+        if (it.status === 'saved') card.append(el('div', 'up-prev', it.savedNote || 'Added.'));
+        else if (it.status === 'error') card.append(el('div', 'up-prev', it.error));
+        else if (it.status === 'needs-ai') {
+          const pv = el('div', 'up-prev');
+          pv.append(el('span', '', it.raw?.image ? 'This is a picture of a report.' : 'This file isn’t in a layout the page knows (weekly sheet, Task User Report, or description and value columns).'));
+          if (sample) { const b = el('button', 'btn', 'Read it with Claude'); b.type = 'button'; b.addEventListener('click', () => readWithClaude(it, ui)); const ra = el('div', 'row-actions'); ra.append(b); pv.append(ra); }
+          else pv.append(el('span', '', 'Upload it as Excel or CSV with a description column and a value column.'));
+          card.append(pv);
+        } else if (it.status === 'ready' && it.result) {
+          const o = el('div', 'up-opts');
+          const ws = el('select'); ws.id = p + '-' + it.id + '-wh'; for (const w of WAREHOUSES) ws.append(new Option(w, w)); ws.value = it.wh;
+          ws.addEventListener('change', () => { it.wh = ws.value; ui.renderList(); });
+          const wl = el('label', '', 'Warehouse '); wl.htmlFor = ws.id; o.append(wl, ws);
+          if (it.result.kind === 'weekly') {
+            const di = el('input'); di.type = 'date'; di.id = p + '-' + it.id + '-wk'; di.value = it.weekStart;
+            di.addEventListener('change', () => { if (di.value) { it.weekStart = mondayOf(di.value); ui.renderList(); } });
+            const l = el('label', '', 'Week starting (Monday) '); l.htmlFor = di.id; o.append(l, di);
+          } else {
+            const di = el('input'); di.type = 'date'; di.id = p + '-' + it.id + '-d'; di.value = it.date;
+            di.addEventListener('change', () => { if (di.value) { it.date = di.value; if (it.to < it.date || it.result.kind !== 'picking') it.to = it.date; ui.renderList(); } });
+            const l = el('label', '', it.result.kind === 'picking' ? 'From ' : 'Date '); l.htmlFor = di.id; o.append(l, di);
+            if (it.result.kind === 'picking') {
+              const d2 = el('input'); d2.type = 'date'; d2.id = p + '-' + it.id + '-to'; d2.value = it.to;
+              d2.addEventListener('change', () => { if (d2.value) { it.to = d2.value < it.date ? it.date : d2.value; ui.renderList(); } });
+              const l2 = el('label', '', 'To '); l2.htmlFor = d2.id; o.append(l2, d2);
+              o.append(el('span', 'muted', it.to === it.date ? 'Saved on that day' : 'Saved as a report for ' + datesBetween(it.date, it.to).length + ' days'));
+            }
+          }
+          card.append(o);
+          const pv = el('div', 'up-prev');
+          if (it.result.kind === 'picking') {
+            const top = it.result.pickers.slice().sort((a, b) => Number(b.pickrate) - Number(a.pickrate)).slice(0, 3).map((x) => x.name + ' ' + x.pickrate + '/hr').join(' · ');
+            pv.append(el('span', '', it.result.pickers.length + ' pickers' + (it.result.skipped ? ' (' + it.result.skipped + ' MMS/Abadan rows skipped)' : '') + '. Fastest: ' + top));
+          } else {
+            const tl = itemTargets(it);
+            pv.append(el('span', '', it.result.found.length + ' figures found' + (it.result.kind === 'weekly' ? ' across ' + tl.length + ' days: ' + tl.map((t) => wday(t.date) + ' ' + dayMon(t.date)).join(', ') : ' for ' + shortDate(it.date)) + '.'));
+            const ul = el('ul');
+            const sd = it.result.kind === 'weekly' ? (tl[tl.length - 1]?.day || {}) : it.result.day;
+            for (const k of it.result.found.slice(0, 18)) {
+              const sec = FIELD_INFO[k].sec; const v = sd[sec] && sd[sec][k];
+              const li = el('li'); li.append(FIELD_INFO[k].label + (v != null ? ': ' : ''), ...(v != null ? [el('b', '', n(v) != null ? fmt(n(v)) : v)] : [])); ul.append(li);
+            }
+            pv.append(ul);
+            if (it.result.kind === 'weekly' && tl.length) pv.append(el('span', '', 'Values shown are for ' + wday(tl[tl.length - 1].date) + '.'));
+            if (tl.some((t) => days.has(keyOf(t.date, it.wh)))) pv.append(el('span', '', 'Days already saved get these figures updated; their other figures stay.'));
+          }
+          if (it.error) pv.append(el('span', 'c-bad', it.error));
+          card.append(pv);
+          const ra = el('div', 'row-actions');
+          const add = el('button', 'btn primary', 'Add to dashboard'); add.type = 'button'; add.disabled = !db; add.addEventListener('click', () => commitItem(it, ui));
+          const rm = el('button', 'btn', 'Remove'); rm.type = 'button'; rm.addEventListener('click', () => { items.splice(items.indexOf(it), 1); ui.renderList(); });
+          ra.append(add, rm); card.append(ra);
+        }
+        if (['saved', 'error', 'needs-ai'].includes(it.status)) {
+          const rm = el('button', 'x', '✕'); rm.type = 'button'; rm.setAttribute('aria-label', 'Dismiss ' + it.name);
+          rm.addEventListener('click', () => { items.splice(items.indexOf(it), 1); ui.renderList(); }); head.append(rm);
+        }
+        return card;
+      }));
+      all.hidden = items.filter((it) => it.status === 'ready').length < 2;
+      msg.textContent = !db && items.length ? 'Sign in to claude.ai to save uploads.' : '';
+      tpl.hidden = !downloads;
+    };
+
+    ui.renderLog = () => {
+      const rows = uploadsLog.filter(opts.logFilter).slice(0, 12);
+      const kids = rows.length ? [el('h3', '', 'Uploaded reports')] : [];
+      for (const u of rows) {
+        const d = el('div');
+        d.append(el('b', '', u.filename), el('span', '', u.warehouse + ' · ' + (u.from ? rangeLabel(u.from, u.to) : u.month ? monthName(u.month) : (u.dates || []).map(dayMon).join(', '))), el('span', '', savedAt(u.savedAt)));
+        if (db) {
+          if (pendingDelete === u.id) {
+            const warn = isLegacy(u) ? 'This older upload removes everything saved for ' + u.warehouse + ' on ' + (u.dates || []).map(dayMon).join(', ') + (usedElsewhere(u) ? ', including figures from other reports' : '') + '.' : 'Removes every figure this report added.';
+            const yes = el('button', 'btn danger', 'Delete for good'); yes.type = 'button';
+            const no = el('button', 'btn', 'Keep'); no.type = 'button';
+            yes.addEventListener('click', async () => {
+              yes.disabled = true; deleteMsg = '';
+              try { await deleteUpload(u); deleteMsg = 'Deleted ' + u.filename + '.'; } catch (e) { deleteMsg = 'Couldn’t delete. Only people who can edit this page can delete reports.'; }
+              pendingDelete = null; render();
+            });
+            no.addEventListener('click', () => { pendingDelete = null; renderUploadLogs(); });
+            d.append(el('span', 'c-bad', warn), yes, no);
+          } else {
+            const del = el('button', 'btn danger', 'Delete'); del.type = 'button'; del.setAttribute('aria-label', 'Delete ' + u.filename);
+            del.addEventListener('click', () => { pendingDelete = u.id; renderUploadLogs(); });
+            d.append(del);
+          }
+        }
+        kids.push(d);
+      }
+      if (deleteMsg) kids.push(el('div', 'state', deleteMsg));
+      log.replaceChildren(...kids);
+    };
+    uploaders.push(ui);
+    return ui;
+  }
+
+  function renderUploadLogs() {
+    for (const ui of uploaders) ui.renderLog();
     const forDay = uploadsLog.filter((u) => u.warehouse === dWh && ((u.dates || []).some((d) => d >= pFrom && d <= pTo) || (u.from && overlap(u.from, u.to, pFrom, pTo)) || (u.month && overlap(u.month + '-01', endOfMonth(u.month + '-01'), pFrom, pTo))));
     $('#d-files').textContent = forDay.length ? 'Reports in this period: ' + [...new Set(forDay.map((u) => u.filename))].join(', ') : '';
   }
-
-  const upFrom = $('#up-from'), upTo = $('#up-to'), upWh = $('#up-wh'), upFile = $('#up-file'), upDrop = $('#up-drop');
-  for (const w of WAREHOUSES) upWh.append(new Option(w, w));
-  upFrom.value = todayIso(); upTo.value = todayIso(); upWh.value = dWh;
-  upFrom.addEventListener('change', () => { if (upFrom.value && (!upTo.value || upTo.value < upFrom.value)) upTo.value = upFrom.value; });
-  upFile.addEventListener('change', () => { addFiles([...upFile.files]); upFile.value = ''; });
-  upDrop.addEventListener('dragover', (e) => { e.preventDefault(); upDrop.classList.add('over'); });
-  upDrop.addEventListener('dragleave', () => upDrop.classList.remove('over'));
-  upDrop.addEventListener('drop', (e) => { e.preventDefault(); upDrop.classList.remove('over'); if (e.dataTransfer?.files?.length) addFiles([...e.dataTransfer.files]); });
-  $('#up-all').addEventListener('click', async () => { for (const it of items.filter((x) => x.status === 'ready')) await commitItem(it); });
-
-  // Quick report periods for uploads.
-  const UP_QUICK = { today: 'Today', yesterday: 'Yesterday', week: 'This week', lastweek: 'Last week', period: 'Period shown above' };
-  function upQuick(q) {
-    const t = todayIso();
-    const [a, b] = q === 'today' ? [t, t] : q === 'yesterday' ? [addDays(t, -1), addDays(t, -1)] : q === 'week' ? weekOf(t) : q === 'lastweek' ? weekOf(addDays(t, -7)) : [pFrom, pTo];
-    upFrom.value = a; upTo.value = b;
-  }
-  $('#up-quick').replaceChildren(...Object.entries(UP_QUICK).map(([q, label]) => { const b = el('button', 'chip', label); b.type = 'button'; b.addEventListener('click', () => upQuick(q)); return b; }));
+  const renderUploadLog = renderUploadLogs;
 
   // Weekly sheet templates, in the same layout as the VIC weekly report.
   const TEMPLATES = {
@@ -1532,17 +1590,21 @@ table.pkin input[type=number] { text-align: right; }
     safety: ['SAFETY', ['Lost Time Injuries', 'First Aid Cases', 'Near Misses Reported', 'Unsafe Acts Observed', 'Forklift Pre-Start Checks Done',
       'Forklift Pre-Start Checks Required', 'PPE Audit %', 'Housekeeping Score (1-5)', 'Toolbox Talk Held (Yes/No)']],
   };
-  const templateCsv = (kind) => {
+  const templateCsv = (kind, wh) => {
     const [title, rows] = TEMPLATES[kind];
-    const days = WEEKDAYS.map((d) => d.toUpperCase());
-    const blank = days.map(() => '');
-    const lines = [[upWh.value + ' WH WEEKLY REPORTING - ' + title], ['DESCRIPTION', ...days], [title], ...rows.map((r) => (/^[A-Z]+$/.test(r) ? [r] : [r, ...blank]))];
+    const dayNames = WEEKDAYS.map((d) => d.toUpperCase());
+    const blank = dayNames.map(() => '');
+    const lines = [[(wh || 'VIC') + ' WH WEEKLY REPORTING - ' + title], ['DESCRIPTION', ...dayNames], [title], ...rows.map((r) => (/^[A-Z]+$/.test(r) ? [r] : [r, ...blank]))];
     return lines.map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
   };
-  for (const b of document.querySelectorAll('#up-templates [data-tpl]')) b.addEventListener('click', async () => {
-    try { await downloads.save({ filename: upWh.value.toLowerCase() + '-weekly-' + b.dataset.tpl + '.csv', data: templateCsv(b.dataset.tpl) }); }
-    catch (e) { if (e && e.code !== 'declined') $('#up-msg').textContent = 'Couldn’t prepare the template.'; }
-  });
+
+  makeUploader($('#up-main'), { prefix: 'up', ctx: null,
+    intro: 'Drop each activity’s reports: the weekly receiving sheet, dispatch, replenishment, feeder, putaway, returns or safety reports, or the Task User Report. Each file is read, you check what was found, and it’s added to that period and warehouse.',
+    dropHint: '.xlsx · .xls · .csv · screenshots (.png, .jpg)', templates: [['receiving', 'Receiving'], ['dispatch', 'Dispatch and returns'], ['safety', 'Safety']], logFilter: () => true });
+  makeUploader($('#up-dis'), { prefix: 'ud', ctx: 'dispatch',
+    intro: 'Upload the weekly dispatch sheet (orders, boxes, CBM, pallets, people, man-hours, replenishment and returns) and the Task User Report from the ERP. Rows without a section heading are read as dispatch.',
+    dropHint: 'Weekly dispatch sheet or Task User Report · .xlsx · .xls · .csv · screenshots', templates: [['dispatch', 'Dispatch and returns weekly sheet']],
+    logFilter: (u) => u.area === 'dispatch' || u.kind === 'picking' || (u.writes || []).some((w) => (w.fields || []).some((k) => ['dispatch', 'returns'].includes(FIELD_INFO[k]?.sec))) });
 
   /* ===================== render & boot ===================== */
   function render() {
@@ -1577,9 +1639,9 @@ table.pkin input[type=number] { text-align: right; }
       render();
     }, () => { loaded = true; render(); });
     db.collection('picking').limit(500).onSnapshot((snap) => { reports = new Map(snap.docs.filter((x) => x.exists).map((x) => [x.id, x.data()])); render(); }, () => {});
-    db.collection('uploads').orderBy('savedAt', 'desc').limit(200).onSnapshot((snap) => { uploadsLog = snap.docs.filter((x) => x.exists).map((x) => x.data()); if (view === 'dash') renderUploadLog(); }, () => {});
-    window.claude.use('sample').then((s) => { sample = s; renderUploadList(); });
-    $('#up-templates').hidden = !downloads;
+    db.collection('uploads').orderBy('savedAt', 'desc').limit(200).onSnapshot((snap) => { uploadsLog = snap.docs.filter((x) => x.exists).map((x) => ({ ...x.data(), id: x.id })); if (view === 'dash') renderUploadLogs(); }, () => {});
+    window.claude.use('sample').then((s) => { sample = s; for (const ui of uploaders) ui.renderList(); });
+    for (const ui of uploaders) ui.renderList();
   })();
 })();
 </script>
