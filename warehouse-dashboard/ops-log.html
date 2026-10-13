@@ -35,6 +35,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* header */
 .head { display: grid; gap: 10px; }
 .title-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.controls.period { gap: 8px 10px; }
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
 .ctl { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: .85rem; }
 .sel, .ctl input[type=date] { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 5px 9px; color: var(--fg); font-size: .95rem; }
@@ -201,10 +202,17 @@ table.pkin input[type=number] { text-align: right; }
         <h1>Warehouse daily ops</h1>
         <div class="controls">
           <div class="seg" id="d-wh" role="group" aria-label="Warehouse"></div>
-          <label class="ctl" for="d-day">Day <select id="d-day" class="sel"></select></label>
           <button class="btn primary" type="button" id="d-edit">Enter or edit a day</button>
         </div>
       </div>
+      <div class="controls period" aria-label="Period">
+        <div class="seg" id="p-presets" role="group" aria-label="Quick periods"></div>
+        <button class="btn" type="button" id="p-prev" aria-label="Previous period">‹</button>
+        <label class="ctl" for="p-from">From <input id="p-from" type="date" min="2020-01-01" max="2099-12-31"></label>
+        <label class="ctl" for="p-to">To <input id="p-to" type="date" min="2020-01-01" max="2099-12-31"></label>
+        <button class="btn" type="button" id="p-next" aria-label="Next period">›</button>
+      </div>
+      <p class="sub" id="d-period-label"></p>
       <p class="take" id="d-take">Loading saved days…</p>
       <p class="day-files" id="d-files"></p>
       <nav class="nav" aria-label="Sections">
@@ -217,7 +225,8 @@ table.pkin input[type=number] { text-align: right; }
       <div class="sec-body">
         <p class="muted">Drop each activity's report for the day: the weekly receiving sheet, the Task User Report, dispatch, replenishment, feeder, putaway, returns or safety reports. Each file is read, you check what was found, and it's added to that day and warehouse.</p>
         <div class="grid">
-          <div class="f"><label for="up-date">Report date</label><input id="up-date" type="date" min="2020-01-01" max="2099-12-31"></div>
+          <div class="f"><label for="up-from">Report from</label><input id="up-from" type="date" min="2020-01-01" max="2099-12-31"></div>
+          <div class="f"><label for="up-to">Report to</label><input id="up-to" type="date" min="2020-01-01" max="2099-12-31"></div>
           <div class="f"><label for="up-wh">Warehouse</label><select id="up-wh"></select></div>
         </div>
         <label class="drop" id="up-drop" for="up-file">
@@ -268,7 +277,6 @@ table.pkin input[type=number] { text-align: right; }
     <section class="section" id="picking">
       <div class="section-head">
         <h2>Picking</h2>
-        <div class="controls"><label class="ctl" for="pk-month">Month <select id="pk-month" class="sel"></select></label></div>
         <p class="muted" id="pk-sub">Boxes per picking hour from the Task User Report.</p>
       </div>
       <div class="tiles" id="pk-tiles"></div>
@@ -284,17 +292,6 @@ table.pkin input[type=number] { text-align: right; }
           <th><button type="button" class="th-btn" data-sort="result">Result</button></th>
         </tr></thead><tbody></tbody></table></div>
       </div>
-      <details class="sec" id="pk-add">
-        <summary><h3>Add a monthly picking report</h3><span class="muted">Replaces that month and warehouse if it exists</span></summary>
-        <div class="sec-body">
-          <div class="grid">
-            <div class="f"><label for="pk-new-month">Month</label><input id="pk-new-month" type="month"></div>
-            <div class="f"><label for="pk-new-wh">Warehouse</label><select id="pk-new-wh"></select></div>
-          </div>
-          <div class="f"><label for="pk-new-paste">Paste the rows from the Task User Report (name, boxes, bin, pickrate). MMS and Abadan are skipped.</label><textarea id="pk-new-paste" class="paste-ta"></textarea></div>
-          <div class="row-actions"><button class="btn primary" type="button" id="pk-new-save">Save report</button><span class="state" id="pk-new-msg"></span></div>
-        </div>
-      </details>
     </section>
 
     <section class="section" id="returns">
@@ -509,15 +506,87 @@ table.pkin input[type=number] { text-align: right; }
   let curDate = todayIso(), curWh = 'VIC', ledgerWh = 'All';
   const drafts = new Map();
   let working = blankDay(), dirty = false, remoteChanged = false, saving = false, confirmDelete = false, lastMsg = null, savedByName = '';
-  let pkMonth = null, pkWh = 'All', pkSort = 'pickrate', pkDir = -1;
+  let pkWh = 'All', pkSort = 'pickrate', pkDir = -1;
   try { const s = JSON.parse(localStorage.getItem('whops') || 'null'); if (s && WAREHOUSES.includes(s.wh)) { dWh = s.wh; curWh = s.wh; } } catch (e) {}
   const remember = () => { try { localStorage.setItem('whops', JSON.stringify({ wh: dWh })); } catch (e) {} };
 
   const daysFor = (wh) => [...days.values()].map((x) => x.data).filter((d) => d && d.warehouse === wh).sort((a, b) => (a.date < b.date ? -1 : 1));
 
+  /* ===================== period ===================== */
+  const addDays = (iso, k) => { const d = dt(iso); d.setDate(d.getDate() + k); return isoOf(d); };
+  const mondayOf = (iso) => { const d = dt(iso); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoOf(d); };
+  const endOfMonth = (iso) => { const d = dt(iso.slice(0, 7) + '-01'); d.setMonth(d.getMonth() + 1); d.setDate(0); return isoOf(d); };
+  const weekOf = (iso) => { const m = mondayOf(iso); return [m, addDays(m, 6)]; };
+  const datesBetween = (a, b) => { const out = []; let x = a; while (x <= b && out.length < 370) { out.push(x); x = addDays(x, 1); } return out; };
+  const overlap = (a, b, c, d) => { const s = a > c ? a : c, e = b < d ? b : d; return s > e ? 0 : datesBetween(s, e).length; };
+  let pFrom = null, pTo = null, pPreset = 'week', periodTouched = false;
+  function setPreset(p) {
+    const t = todayIso(); pPreset = p;
+    if (p === 'week') [pFrom, pTo] = weekOf(t);
+    else if (p === 'lastweek') [pFrom, pTo] = weekOf(addDays(t, -7));
+    else if (p === 'month') { pFrom = t.slice(0, 7) + '-01'; pTo = endOfMonth(t); }
+    else if (p === 'lastmonth') { const d = dt(t.slice(0, 7) + '-01'); d.setDate(0); const iso = isoOf(d); pFrom = iso.slice(0, 7) + '-01'; pTo = iso; }
+  }
+  setPreset('week');
+  function focusDate(iso) { if (!iso) return; if (!(iso >= pFrom && iso <= pTo)) { [pFrom, pTo] = weekOf(iso); pPreset = 'custom'; } dDate = iso; periodTouched = true; }
+  const isWeek = () => pFrom === mondayOf(pFrom) && pTo === addDays(pFrom, 6);
+  const isMonth = () => pFrom.slice(8) === '01' && pTo === endOfMonth(pFrom);
+  const fullDate = (iso) => dt(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+  const rangeLabel = (a, b) => (a === b ? fullDate(a) : dayMon(a) + ' – ' + fullDate(b));
+  const periodLabel = () => (isWeek() ? 'week of ' + rangeLabel(pFrom, pTo) : isMonth() ? dt(pFrom).toLocaleDateString('en-AU', { month: 'long', year: 'numeric' }) : rangeLabel(pFrom, pTo));
+  function shiftPeriod(k) {
+    if (isMonth()) { const d = dt(pFrom); d.setMonth(d.getMonth() + k); pFrom = isoOf(d); pTo = endOfMonth(pFrom); }
+    else { const len = datesBetween(pFrom, pTo).length; pFrom = addDays(pFrom, k * len); pTo = addDays(pTo, k * len); }
+    pPreset = 'custom'; periodTouched = true; render();
+  }
+
+  /* ===================== period scoring ===================== */
+  function combinePickers(list) {
+    const m = new Map();
+    for (const p of list) {
+      const b = n(p.boxes), r = n(p.pickrate); if (!p.name || b == null || !r) continue;
+      const x = m.get(p.name) || { name: p.name, boxes: 0, bins: 0, hours: 0 };
+      x.boxes += b; x.bins += n(p.bins) || 0; x.hours += b / r; m.set(p.name, x);
+    }
+    return [...m.values()].map((x) => ({ name: x.name, boxes: String(x.boxes), bins: String(x.bins), pickrate: String(r2(x.boxes / x.hours)) }));
+  }
+  function aggregate(list) {
+    const agg = blankDay(), yn = {}, cnt = {};
+    for (const d of list) for (const sec of ['receiving', 'dispatch', 'returns', 'safety']) for (const [k, v] of Object.entries(d[sec] || {})) {
+      const info = FIELD_INFO[k]; if (!info || v === '' || v == null) continue;
+      if (info.kind === 'num') { agg[sec][k] = String(r2((n(agg[sec][k]) || 0) + (n(v) || 0))); cnt[k] = (cnt[k] || 0) + 1; }
+      else if (info.kind === 'yn') { yn[k] = yn[k] || { yes: 0, no: 0 }; if (v === 'Yes') yn[k].yes++; else yn[k].no++; }
+      else agg[sec][k] = (agg[sec][k] ? agg[sec][k] + '\n' : '') + wday(d.date) + ' ' + dayMon(d.date) + ': ' + v;
+    }
+    for (const k of ['ppe_audit_pct', 'housekeeping_score']) if (cnt[k]) agg.safety[k] = String(r2(n(agg.safety[k]) / cnt[k]));
+    agg.pickers = combinePickers(list.flatMap((d) => d.pickers || []));
+    return { agg, yn };
+  }
+  function scorePeriod(list) {
+    const { agg, yn } = aggregate(list);
+    const sc = scoreDay(agg, targets);
+    const ynKpi = (id, area, name, key, good) => {
+      const c = yn[key]; if (!c) return;
+      const total = c.yes + c.no, bad = good === 'Yes' ? c.no : c.yes;
+      sc.list.push({ id, area, name, value: c.yes + ' of ' + total, unit: 'days', targetText: good === 'Yes' ? 'Every day' : 'No days', hit: bad === 0 });
+    };
+    ynKpi('sameday', 'Receiving', 'Unloaded on receiving date', 'unloaded_same_day', 'Yes');
+    ynKpi('leftbehind', 'Receiving', 'Pallets left behind', 'pallets_left_behind', 'No');
+    ynKpi('detention', 'Receiving', 'Container detention', 'container_detention', 'No');
+    ynKpi('tbt', 'Safety', 'Toolbox talk held', 'toolbox_talk', 'Yes');
+    const by = (area) => { const l = sc.list.filter((k) => k.area === area); return { hit: l.filter((k) => k.hit).length, total: l.length }; };
+    const ops = sc.list.filter((k) => k.area !== 'Safety'), saf = sc.list.filter((k) => k.area === 'Safety');
+    Object.assign(sc, { byId: Object.fromEntries(sc.list.map((k) => [k.id, k])), rec: by('Receiving'), dis: by('Dispatch'),
+      opsHit: ops.filter((k) => k.hit).length, opsTotal: ops.length, safetyMet: saf.filter((k) => k.hit).length, safetyTotal: saf.length, agg });
+    const perDay = list.map((d) => scoreDay(d, targets));
+    sc.daysScored = perDay.filter((s) => s.opsTotal).length;
+    sc.daysOnTarget = perDay.filter((s) => s.opsTotal && s.opsHit === s.opsTotal).length;
+    return sc;
+  }
+
   /* ===================== dashboard ===================== */
-  const segInto = (box, items, get, set) => box.replaceChildren(...items.map((w) => {
-    const b = el('button', 'chip', w); b.type = 'button'; b.setAttribute('aria-pressed', String(get() === w));
+  const segInto = (box, items, get, set, label) => box.replaceChildren(...items.map((w) => {
+    const b = el('button', 'chip', label ? label(w) : w); b.type = 'button'; b.setAttribute('aria-pressed', String(get() === w));
     b.addEventListener('click', () => { set(w); render(); }); return b;
   }));
   function tile(k, value, unit, note, pillEl, cls) {
@@ -532,49 +601,56 @@ table.pkin input[type=number] { text-align: right; }
   }
   const valText = (k) => (k == null ? '—' : typeof k.value === 'number' ? fmt(k.value) : k.value);
 
-  const daySel = $('#d-day');
-  daySel.addEventListener('change', () => { dDate = daySel.value; render(); });
-  $('#d-edit').addEventListener('click', () => { openEntry(dDate || todayIso(), dWh); });
+  const pFromIn = $('#p-from'), pToIn = $('#p-to');
+  const onRange = () => {
+    const a = pFromIn.value, b = pToIn.value;
+    if (!a || !b || !pFromIn.validity.valid || !pToIn.validity.valid) return;
+    [pFrom, pTo] = a <= b ? [a, b] : [b, a]; pPreset = 'custom'; periodTouched = true; render();
+  };
+  pFromIn.addEventListener('change', onRange); pToIn.addEventListener('change', onRange);
+  pFromIn.addEventListener('blur', () => { pFromIn.value = pFrom; }); pToIn.addEventListener('blur', () => { pToIn.value = pTo; });
+  $('#p-prev').addEventListener('click', () => shiftPeriod(-1));
+  $('#p-next').addEventListener('click', () => shiftPeriod(1));
+  $('#d-edit').addEventListener('click', () => { const t = todayIso(); openEntry(t >= pFrom && t <= pTo ? t : pTo, dWh); });
+  const inPeriod = (d) => d.date >= pFrom && d.date <= pTo;
+  const PRESETS = { week: 'This week', lastweek: 'Last week', month: 'This month', lastmonth: 'Last month' };
 
   function renderDash() {
-    segInto($('#d-wh'), WAREHOUSES, () => dWh, (w) => { dWh = w; dDate = null; remember(); });
-    const list = daysFor(dWh);
-    const dates = list.map((d) => d.date);
-    if (!dates.includes(dDate)) dDate = dates[dates.length - 1] || null;
-    daySel.replaceChildren(...dates.slice().reverse().map((d) => new Option(shortDate(d), d)));
-    daySel.disabled = !dates.length;
-    if (dDate) daySel.value = dDate;
-    const day = list.find((d) => d.date === dDate) || null;
-    const sc = scoreDay(day || blankDay(), targets);
+    segInto($('#d-wh'), WAREHOUSES, () => dWh, (w) => { dWh = w; remember(); });
+    segInto($('#p-presets'), Object.keys(PRESETS), () => pPreset, (p) => { setPreset(p); periodTouched = true; }, (p) => PRESETS[p]);
+    if (document.activeElement !== pFromIn) pFromIn.value = pFrom;
+    if (document.activeElement !== pToIn) pToIn.value = pTo;
+    const list = daysFor(dWh).filter(inPeriod);
+    const sc = scorePeriod(list);
+    const span = datesBetween(pFrom, pTo).length;
+    $('#d-period-label').textContent = dWh + ' · ' + periodLabel() + ' · ' + list.length + ' of ' + span + ' days saved';
 
-    // takeaway
     const take = $('#d-take');
     if (!loaded) take.textContent = 'Loading saved days…';
     else if (!db) take.textContent = 'Sign in to claude.ai to see saved days.';
-    else if (!day) {
-      take.replaceChildren('No saved days for ' + dWh + ' yet. Press ', el('b', '', 'Enter or edit a day'), ' to add the first one; it shows here as soon as it’s saved.');
-    } else {
+    else if (!list.length) take.replaceChildren('Nothing saved for ' + dWh + ' in this period. Upload the reports below or press ', el('b', '', 'Enter or edit a day'), '.');
+    else {
       const missed = sc.list.filter((k) => k.area !== 'Safety' && !k.hit).map((k) => (k.area === 'Dispatch' ? 'dispatch ' : '') + k.name.toLowerCase());
-      take.replaceChildren(dWh + ', ' + longDate(dDate) + ': the team hit ', el('b', '', sc.opsHit + ' of ' + sc.opsTotal), ' KPIs' + (missed.length ? ' (missed: ' + missed.join(', ') + ')' : '') + ', met ',
-        el('b', '', sc.safetyMet + ' of ' + sc.safetyTotal), ' safety standards' + (sc.returned != null ? ', and took back ' : '.'), ...(sc.returned != null ? [el('b', '', fmt(sc.returned)), ' returned boxes.'] : []));
+      take.replaceChildren(dWh + ', ' + periodLabel() + ': across ' + list.length + ' saved ' + (list.length === 1 ? 'day' : 'days') + ' the team hit ', el('b', '', sc.opsHit + ' of ' + sc.opsTotal),
+        ' KPIs for the period' + (missed.length ? ' (missed: ' + missed.join(', ') + ')' : '') + ', hit every KPI on ', el('b', '', sc.daysOnTarget + ' of ' + sc.daysScored), ' days, met ',
+        el('b', '', sc.safetyMet + ' of ' + sc.safetyTotal), ' safety standards' + (sc.returned != null ? ' and took back ' : '.'), ...(sc.returned != null ? [el('b', '', fmt(sc.returned)), ' returned boxes.'] : []));
     }
 
-    // summary
-    const frac = (h, t) => (t ? [String(h), ' / ' + t] : ['—', '']);
     const cls = (h, t) => (!t ? '' : h === t ? 'c-ok' : h / t >= 0.7 ? 'c-warn' : 'c-bad');
-    const missedNames = (area) => { const m = sc.list.filter((k) => (area ? k.area === area : k.area !== 'Safety') && !k.hit).map((k) => k.name); return !m.length ? (sc.list.some((k) => (area ? k.area === area : true)) ? 'Every target met' : 'Not entered') : 'Missed: ' + m.join(', '); };
-    const [ah, at] = frac(sc.opsHit, sc.opsTotal), [rh, rt] = frac(sc.rec.hit, sc.rec.total), [dh, dtt] = frac(sc.dis.hit, sc.dis.total), [sh, st] = frac(sc.safetyMet, sc.safetyTotal);
+    const missedNames = (area) => { const l = sc.list.filter((k) => (area ? k.area === area : k.area !== 'Safety')); const m = l.filter((k) => !k.hit).map((k) => k.name); return !l.length ? 'Not entered' : m.length ? 'Missed: ' + m.join(', ') : 'Every target met'; };
+    const frac = (h, t) => (t ? [String(h), '/ ' + t] : ['—', '']);
+    const [ah, at] = frac(sc.opsHit, sc.opsTotal), [rh, rt] = frac(sc.rec.hit, sc.rec.total), [dh, dtt] = frac(sc.dis.hit, sc.dis.total), [sh, st] = frac(sc.safetyMet, sc.safetyTotal), [oh, ot] = frac(sc.daysOnTarget, sc.daysScored);
     $('#d-summary').replaceChildren(
-      tile('All KPIs hit', ah, at, missedNames(null), null, cls(sc.opsHit, sc.opsTotal)),
+      tile('All KPIs hit · period', ah, at, missedNames(null), null, cls(sc.opsHit, sc.opsTotal)),
+      tile('Days every KPI was hit', oh, ot, sc.daysScored ? 'Of the saved days with KPIs' : 'Not entered', null, cls(sc.daysOnTarget, sc.daysScored)),
       tile('Receiving KPIs hit', rh, rt, missedNames('Receiving'), null, cls(sc.rec.hit, sc.rec.total)),
       tile('Dispatch KPIs hit', dh, dtt, missedNames('Dispatch'), null, cls(sc.dis.hit, sc.dis.total)),
-      tile('Safety standards met', sh, st, sc.safetyTotal ? (sc.safetyMet === sc.safetyTotal ? 'Clean day' : 'See safety below') : 'Not entered', null, sc.safetyTotal ? (sc.safetyMet === sc.safetyTotal ? 'c-ok' : 'c-bad') : ''),
-      tile('Boxes returned', sc.returned == null ? '—' : fmt(sc.returned), '', 'All reasons'),
+      tile('Safety standards met', sh, st, sc.safetyTotal ? (sc.safetyMet === sc.safetyTotal ? 'Clean period' : 'See safety below') : 'Not entered', null, sc.safetyTotal ? (sc.safetyMet === sc.safetyTotal ? 'c-ok' : 'c-bad') : ''),
+      tile('Boxes returned', sc.returned == null ? '—' : fmt(sc.returned), '', 'Total for the period'),
     );
 
-    // receiving KPI tiles
-    const B = sc.byId, R = (day && day.receiving) || {};
-    const kt = (id, label, unitFallback) => { const k = B[id]; return tile(label, valText(k), k ? k.unit : unitFallback || '', k ? 'Target ' + k.targetText : 'Not entered', resPill(k)); };
+    const B = sc.byId, R = sc.agg.receiving || {};
+    const kt = (id, label) => { const k = B[id]; return tile(label, valText(k), k ? k.unit : '', k ? 'Target ' + k.targetText : 'Not entered', resPill(k)); };
     $('#d-rec-kpis').replaceChildren(
       kt('hpc', 'Unloading man-hours per container'), kt('unloaded', 'Containers unloaded'), kt('checks', 'Random box checks'),
       kt('accuracy', 'PO & ST discrepancy accuracy'), kt('sameday', 'Unloaded on receiving date'), kt('leftbehind', 'Pallets left behind'), kt('detention', 'Container detention'));
@@ -584,22 +660,22 @@ table.pkin input[type=number] { text-align: right; }
       tile('Boxes received', fmt(n(R.boxes_received))), tile('CBM received', fmt(n(R.cbm_received))), tile('SKUs received', fmt(n(R.skus_received))),
       tile('Pallets used', fmt(n(R.pallets_used)), '', cont && n(R.pallets_used) != null ? fmt(r2(n(R.pallets_used) / cont)) + ' per container' : ''),
       tile('Boxes per man-hour', n(R.boxes_received) != null && n(R.unloading_hours) ? fmt(r2(n(R.boxes_received) / n(R.unloading_hours))) : '—', '', n(R.unloading_hours) != null ? fmt(n(R.unloading_hours)) + ' man-hours' : ''),
-      tile('People unloading', fmt(n(R.people_unloading))));
+      tile('Containers unloaded', fmt(cont || null), '', 'PO and ST'));
 
-    drawBarChart($('#d-hpc-chart'), list.slice(-14).map((d) => ({ date: d.date, v: scoreDay(d, targets).byId.hpc?.value ?? null })).filter((x) => x.v != null),
+    drawBarChart($('#d-hpc-chart'), list.map((d) => ({ date: d.date, v: scoreDay(d, targets).byId.hpc?.value ?? null })).filter((x) => x.v != null),
       { target: targets.hrs_per_container, targetLabel: 'Target ' + targets.hrs_per_container + ' h', colorOf: (x) => (x.v <= targets.hrs_per_container ? 'var(--series)' : 'var(--bad)'),
-        tipOf: (x) => [fmt(x.v) + ' man-hours per container'], empty: 'Saved days with unloading hours and containers show here.' });
+        tipOf: (x) => [fmt(x.v) + ' man-hours per container'], empty: 'Days with unloading hours and containers show here.' });
     drawSheet(list);
 
-    // dispatch
+    const D = sc.agg.dispatch || {};
     $('#d-dis').replaceChildren(kt('disp_box', 'Boxes/hr'), kt('disp_cbm', 'CBM/hr'), (() => {
-      const k = B.replen; const D = (day && day.dispatch) || {};
-      return tile('Replenishment pallets/hr', valText(k), k ? '/hr' : '', k ? 'Target ' + k.targetText + ' · ' + fmt(r2(k.value / 2)) + ' per replenisher' + (n(D.replen_pallets) != null ? ' · ' + fmt(n(D.replen_pallets)) + ' pallets' : '') : 'Not entered', resPill(k));
-    })(), kt('pick', 'Pick rate (this day)'));
+      const k = B.replen;
+      return tile('Replenishment pallets/hr', valText(k), k ? '/hr' : '', k ? 'Target ' + k.targetText + ' · ' + fmt(r2(k.value / 2)) + ' per replenisher · ' + fmt(n(D.replen_pallets)) + ' pallets' : 'Not entered', resPill(k));
+    })(), tile('Boxes dispatched', fmt(n(D.boxes_dispatched)), '', n(D.cbm_dispatched) != null ? fmt(n(D.cbm_dispatched)) + ' CBM' : 'Total for the period'));
 
     drawMatrix(list);
-    drawReturns(list, day);
-    drawSafety(list, day);
+    drawReturns(list, sc);
+    drawSafety(list, sc);
   }
 
   function drawBarChart(box, rows, o) {
@@ -608,9 +684,8 @@ table.pkin input[type=number] { text-align: right; }
     const max = Math.max(o.target || 0, ...rows.map((x) => x.v)) * 1.15 || 1;
     const y = (v) => top + (H - bottom - top) * (1 - v / max);
     const step = (W - left - 6) / rows.length, bw = Math.min(32, step * 0.6);
-    const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': 'Bar chart' });
-    const ticks = [0, max / 3, (2 * max) / 3].map((v) => Math.round(v));
-    for (const tv of ticks) {
+    const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': 'Bar chart by day' });
+    for (const tv of [0, max / 3, (2 * max) / 3].map((v) => Math.round(v))) {
       svg.append(sv('line', { x1: left, x2: W - 6, y1: y(tv), y2: y(tv), style: 'stroke: var(--grid)' }));
       const tx = sv('text', { x: left - 6, y: y(tv), dy: '0.32em', 'text-anchor': 'end', style: 'fill: var(--muted); font-size: 12px' }); tx.textContent = fmt(tv); svg.append(tx);
     }
@@ -618,13 +693,11 @@ table.pkin input[type=number] { text-align: right; }
     rows.forEach((x, i) => {
       const cx = left + step * i + step / 2;
       const rect = sv('rect', { x: cx - bw / 2, y: y(x.v), width: bw, height: Math.max(0, y(0) - y(x.v)), rx: 4, style: 'fill: ' + o.colorOf(x) + '; cursor: pointer' });
-      rect.addEventListener('pointermove', (e) => showTip(e, shortDate(x.date), o.tipOf(x)));
+      rect.addEventListener('pointermove', (e) => showTip(e, shortDate(x.date), o.tipOf(x).concat('Click to open this day')));
       rect.addEventListener('pointerleave', hideTip);
-      rect.addEventListener('click', () => { dDate = x.date; render(); });
+      rect.addEventListener('click', () => openEntry(x.date, dWh));
       svg.append(rect);
-      if (i % every === 0 || x.date === dDate) {
-        const tx = sv('text', { x: cx, y: H - 6, 'text-anchor': 'middle', style: 'font-size: 12px; fill: ' + (x.date === dDate ? 'var(--fg)' : 'var(--muted)') }); tx.textContent = dayMon(x.date); svg.append(tx);
-      }
+      if (i % every === 0) { const tx = sv('text', { x: cx, y: H - 6, 'text-anchor': 'middle', style: 'font-size: 12px; fill: var(--muted)' }); tx.textContent = wday(x.date) + ' ' + dayMon(x.date); svg.append(tx); }
     });
     if (o.target != null) {
       svg.append(sv('line', { x1: left, x2: W - 6, y1: y(o.target), y2: y(o.target), 'stroke-dasharray': '4 3', style: 'stroke: var(--ref)' }));
@@ -635,17 +708,17 @@ table.pkin input[type=number] { text-align: right; }
 
   function drawSheet(list) {
     const table = $('#d-sheet');
-    const base = dDate ? dt(dDate) : new Date();
-    const mon = new Date(base); mon.setDate(base.getDate() - ((base.getDay() + 6) % 7));
-    const week = [...Array(7)].map((_, i) => { const x = new Date(mon); x.setDate(mon.getDate() + i); return isoOf(x); });
-    $('#d-sheet-h').textContent = dWh + ' weekly sheet · week of ' + dayMon(week[0]);
+    let cols = datesBetween(pFrom, pTo);
+    if (cols.length > 31) cols = cols.filter((d) => list.some((x) => x.date === d));
+    $('#d-sheet-h').textContent = dWh + ' sheet · ' + periodLabel();
     const byDate = Object.fromEntries(list.map((d) => [d.date, d]));
     const hr = el('tr'); hr.append(el('th', '', 'Description'));
-    for (const d of week) { const th = el('th', 'r' + (d === dDate ? ' sel-day' : ''), wday(d) + ' ' + dayMon(d)); hr.append(th); }
-    hr.append(el('th', 'r wk', 'Week'));
+    for (const d of cols) { const th = el('th', 'r'); const b = el('button', 'th-btn', wday(d) + ' ' + dayMon(d)); b.type = 'button'; b.title = 'Open this day'; b.addEventListener('click', () => openEntry(d, dWh)); th.append(b); hr.append(th); }
+    hr.append(el('th', 'r wk', 'Total'));
     table.tHead.replaceChildren(hr);
     const R = (d, k) => (byDate[d] ? (byDate[d].receiving || {})[k] : undefined);
     const S = (d) => (byDate[d] ? scoreDay(byDate[d], targets) : null);
+    const total = scorePeriod(list);
     const ROWS = [
       ['grp', 'Containers'],
       ['Containers delivered (PO)', 'containers_delivered_po'], ['Containers unloaded (PO)', 'containers_unloaded_po', 'unloaded'],
@@ -662,47 +735,38 @@ table.pkin input[type=number] { text-align: right; }
       ['Pallets built (palletizing)', 'palletized_pallets', 'palletizing'], ['Pallet labels printed', 'labels_printed', 'labels'], ['Pallets QC\'d', 'qc_pallets', 'qc'],
       ['Pallets fed (feeder)', 'feeder_pallets', 'feeder'], ['Pallets put away', 'putaway_pallets', 'putaway'],
     ];
-    const body = ROWS.map((row) => {
-      if (row[0] === 'grp') { const tr = el('tr', 'grp'); const td = el('td', '', row[1]); td.colSpan = 9; tr.append(td); return tr; }
+    table.tBodies[0].replaceChildren(...ROWS.map((row) => {
+      if (row[0] === 'grp') { const tr = el('tr', 'grp'); const td = el('td', '', row[1]); td.colSpan = cols.length + 2; tr.append(td); return tr; }
       const [label, field, kid] = row;
       const tr = el('tr'); tr.append(el('td', '', label));
-      let total = 0, any = false, yes = 0;
-      for (const d of week) {
+      for (const d of cols) {
         const s = S(d); const k = kid && s ? s.byId[kid] : null;
         let v = field ? R(d, field) : k ? k.value : undefined;
-        if (v === '' ) v = undefined;
-        if (v != null) { any = true; if (n(v) != null) total += n(v); if (v === 'Yes') yes++; }
-        const td = el('td', 'r' + (k ? (k.hit ? ' hit' : ' miss') : ''), v == null ? '' : n(v) != null ? fmt(n(v)) : v);
-        tr.append(td);
+        if (v === '') v = undefined;
+        tr.append(el('td', 'r' + (k ? (k.hit ? ' hit' : ' miss') : ''), v == null ? '' : n(v) != null ? fmt(n(v)) : v));
       }
+      const tk = kid ? total.byId[kid] : null;
       let wk = '';
-      if (any) {
-        if (kid === 'hpc') {
-          let h = 0, c = 0; for (const d of week) { const ri = byDate[d]?.receiving || {}; const cc = (n(ri.containers_unloaded_po) || 0) + (n(ri.containers_unloaded_st) || 0); if (cc && n(ri.unloading_hours) != null) { h += n(ri.unloading_hours); c += cc; } }
-          wk = c ? fmt(r2(h / c)) : '';
-        } else if (['unloaded_same_day', 'container_detention', 'pallets_left_behind'].includes(field)) wk = yes + ' days Yes';
-        else wk = fmt(r2(total));
-      }
-      tr.append(el('td', 'r wk', wk));
+      if (tk && (kid === 'hpc' || ['sameday', 'detention', 'leftbehind'].includes(kid))) wk = valText(tk) + (['sameday', 'detention', 'leftbehind'].includes(kid) ? ' Yes' : '');
+      else if (field && total.agg.receiving[field] != null) wk = fmt(n(total.agg.receiving[field]));
+      tr.append(el('td', 'r wk' + (tk ? (tk.hit ? ' hit' : ' miss') : ''), wk));
       return tr;
-    });
-    table.tBodies[0].replaceChildren(...body);
+    }));
   }
 
   function drawMatrix(list) {
     const box = $('#d-matrix');
-    const recent = list.slice(-14);
-    if (!recent.length) { box.style.gridTemplateColumns = '1fr'; box.replaceChildren(el('div', 'empty', 'Saved days for ' + dWh + ' appear here, one column per day.')); return; }
-    const scores = recent.map((d) => ({ date: d.date, sc: scoreDay(d, targets) }));
+    if (!list.length) { box.style.gridTemplateColumns = '1fr'; box.replaceChildren(el('div', 'empty', 'Each saved day in the period for ' + dWh + ' appears here as a column.')); return; }
+    const scores = list.map((d) => ({ date: d.date, sc: scoreDay(d, targets) }));
     const kpis = []; for (const { sc } of scores) for (const k of sc.list) if (k.area !== 'Safety' && !kpis.some((x) => x.id === k.id)) kpis.push({ id: k.id, area: k.area, name: k.name });
     const order = ['hpc', 'unloaded', 'checks', 'accuracy', 'sameday', 'leftbehind', 'detention', 'palletizing', 'labels', 'qc', 'feeder', 'putaway', 'disp_box', 'disp_cbm', 'replen', 'pick'];
     kpis.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
-    box.style.gridTemplateColumns = `minmax(10rem, 15rem) repeat(${recent.length}, minmax(3.2rem, 1fr))`;
+    box.style.gridTemplateColumns = `minmax(10rem, 15rem) repeat(${scores.length}, minmax(3.2rem, 1fr))`;
     const kids = [el('div', '')];
     for (const { date } of scores) {
-      const b = el('button', 'dh'); b.type = 'button'; b.setAttribute('aria-pressed', String(date === dDate));
+      const b = el('button', 'dh'); b.type = 'button'; b.title = 'Open this day';
       b.append(el('div', '', wday(date)), el('div', '', dayMon(date)));
-      b.addEventListener('click', () => { dDate = date; render(); }); kids.push(b);
+      b.addEventListener('click', () => openEntry(date, dWh)); kids.push(b);
     }
     let area = null;
     for (const k of kpis) {
@@ -710,7 +774,7 @@ table.pkin input[type=number] { text-align: right; }
       const lab = el('div', 'lab'); lab.append(el('span', '', k.name)); kids.push(lab);
       for (const { date, sc } of scores) {
         const x = sc.byId[k.id];
-        const c = el('div', 'cell' + (x ? (x.hit ? ' hit' : ' miss') : '') + (date === dDate ? ' sel' : ''), x ? (typeof x.value === 'number' ? fmt(x.value) : x.value) : '');
+        const c = el('div', 'cell' + (x ? (x.hit ? ' hit' : ' miss') : ''), x ? valText(x) : '');
         if (x) { c.addEventListener('pointermove', (e) => showTip(e, k.name + ' · ' + shortDate(date), [valText(x) + ' ' + (x.unit || ''), 'Target ' + x.targetText + ' · ' + (x.hit ? 'Hit' : 'Missed')])); c.addEventListener('pointerleave', hideTip); }
         kids.push(c);
       }
@@ -720,14 +784,14 @@ table.pkin input[type=number] { text-align: right; }
     box.replaceChildren(...kids);
   }
 
-  function drawReturns(list, day) {
-    drawBarChart($('#d-ret-chart'), list.slice(-14).map((d) => ({ date: d.date, v: scoreDay(d, targets).returned })).filter((x) => x.v != null),
-      { colorOf: (x) => (x.date === dDate ? 'var(--series)' : 'var(--chart-muted)'), tipOf: (x) => [fmt(x.v) + ' boxes returned'], empty: 'Saved days with returns show here.' });
-    $('#d-reason-h').textContent = dDate ? 'Why they came back · ' + shortDate(dDate) : 'Why they came back';
-    const RT = (day && day.returns) || {};
+  function drawReturns(list, sc) {
+    drawBarChart($('#d-ret-chart'), list.map((d) => ({ date: d.date, v: scoreDay(d, targets).returned })).filter((x) => x.v != null),
+      { colorOf: () => 'var(--series)', tipOf: (x) => [fmt(x.v) + ' boxes returned'], empty: 'Days with returns show here.' });
+    $('#d-reason-h').textContent = 'Why they came back · ' + periodLabel();
+    const RT = sc.agg.returns || {};
     const rows = RETURN_REASONS.map(([k, label]) => ({ label, v: n(RT[k]) })).filter((r) => r.v != null).sort((a, b) => b.v - a.v);
     const box = $('#d-reasons');
-    if (!rows.length) { box.replaceChildren(el('div', 'empty', 'No returns entered for this day.')); return; }
+    if (!rows.length) { box.replaceChildren(el('div', 'empty', 'No returns entered in this period.')); return; }
     const max = Math.max(1, ...rows.map((r) => r.v));
     box.replaceChildren(...rows.map((r, i) => {
       const line = el('div', 'reason'); const bar = el('div', 'reason-bar'); const f = el('i');
@@ -736,52 +800,58 @@ table.pkin input[type=number] { text-align: right; }
     }));
   }
 
-  function drawSafety(list, day) {
-    const last = list.slice(-30);
-    const sum = (k) => last.reduce((s, d) => s + (n((d.safety || {})[k]) || 0), 0);
-    $('#d-safety-window').textContent = last.length ? 'Across the last ' + last.length + ' saved days for ' + dWh + ': ' + sum('lost_time_injuries') + ' lost-time injuries, ' + sum('first_aid_cases') + ' first aid cases, ' + sum('near_misses') + ' near misses reported.' : 'Daily safety checks for the selected day.';
-    const S = (day && day.safety) || {};
-    const sc = scoreDay(day || blankDay(), targets).byId;
-    const st = (id, label, fallbackUnit) => { const k = sc[id]; return tile(label, valText(k), k ? k.unit : fallbackUnit || '', k ? k.targetText : 'Not entered', null, k ? (k.hit ? 'c-ok' : 'c-bad') : ''); };
-    $('#d-safety').replaceChildren(st('lti', 'Lost-time injuries'), st('fa', 'First aid cases'), st('fork', 'Forklift pre-start checks'), st('ppe', 'PPE audit'),
-      st('hk', 'Housekeeping'), st('tbt', 'Toolbox talk'),
+  function drawSafety(list, sc) {
+    const S = sc.agg.safety || {};
+    $('#d-safety-window').textContent = list.length ? 'Totals for ' + periodLabel() + ' across ' + list.length + ' saved days. PPE and housekeeping are daily averages.' : 'Daily safety checks, totalled for the period.';
+    const st = (id, label) => { const k = sc.byId[id]; return tile(label, valText(k), k ? k.unit : '', k ? k.targetText : 'Not entered', null, k ? (k.hit ? 'c-ok' : 'c-bad') : ''); };
+    $('#d-safety').replaceChildren(st('lti', 'Lost-time injuries'), st('fa', 'First aid cases'), st('fork', 'Forklift pre-start checks'), st('ppe', 'PPE audit (average)'),
+      st('hk', 'Housekeeping (average)'), st('tbt', 'Toolbox talk held'),
       tile('Near misses reported', fmt(n(S.near_misses)), '', 'Reporting is encouraged'),
-      tile('Unsafe acts observed', fmt(n(S.unsafe_acts)), '', 'Coached on the spot', null, n(S.unsafe_acts) >= 3 ? 'c-warn' : ''));
-    $('#d-notes').textContent = S.notes || 'Nothing recorded for this day.';
+      tile('Unsafe acts observed', fmt(n(S.unsafe_acts)), '', 'Coached on the spot'));
+    $('#d-notes').textContent = S.notes || 'Nothing recorded in this period.';
   }
 
   /* ===================== picking ===================== */
-  const pkMonthSel = $('#pk-month');
-  pkMonthSel.addEventListener('change', () => { pkMonth = pkMonthSel.value; render(); });
   for (const th of document.querySelectorAll('#pk-table .th-btn')) th.addEventListener('click', () => {
     const k = th.dataset.sort;
     if (k === pkSort) pkDir = -pkDir; else { pkSort = k; pkDir = ['name', 'warehouse', 'result'].includes(k) ? 1 : -1; }
     renderPicking();
   });
   const monthName = (m) => new Date(m + '-01T00:00:00').toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
-  function renderPicking() {
-    const months = [...new Set([...reports.values()].map((r) => r.month))].sort().reverse();
-    if (!months.includes(pkMonth)) pkMonth = months[0] || null;
-    pkMonthSel.replaceChildren(...months.map((m) => new Option(monthName(m), m)));
-    pkMonthSel.disabled = !months.length;
-    if (pkMonth) pkMonthSel.value = pkMonth;
-    const tiles = $('#pk-tiles'), tbody = $('#pk-table tbody');
-    if (!pkMonth) { tiles.replaceChildren(el('div', 'empty', loaded ? 'No picking reports yet. Use “Add a monthly picking report” below.' : 'Loading…')); tbody.replaceChildren(); return; }
-    const T = targets.pick_rate, MIN = targets.pick_min_boxes;
-    const people = [];
-    for (const r of reports.values()) if (r.month === pkMonth) for (const p of r.pickers || []) {
-      const boxes = n(p.boxes), rate = n(p.pickrate);
-      if (!p.name || boxes == null || !rate) continue;
-      people.push({ name: p.name, warehouse: r.warehouse, boxes, bins: n(p.bins), pickrate: rate, hours: r2(boxes / rate), result: boxes < MIN ? 'Too few boxes' : rate >= T ? 'Hit' : 'Missed' });
+  const reportRange = (r) => (r.from && r.to ? [r.from, r.to] : r.month ? [r.month + '-01', endOfMonth(r.month + '-01')] : null);
+  function pickingFor(wh) {
+    const recs = daysFor(wh).filter(inPeriod).filter((d) => (d.pickers || []).length);
+    if (recs.length) return { people: combinePickers(recs.flatMap((d) => d.pickers)), source: recs.length + ' daily ' + (recs.length === 1 ? 'report' : 'reports') };
+    let best = null, bestOv = 0;
+    for (const r of reports.values()) {
+      if (r.warehouse !== wh) continue; const rg = reportRange(r); if (!rg) continue;
+      const ov = overlap(rg[0], rg[1], pFrom, pTo); if (ov > bestOv) { best = { r, rg }; bestOv = ov; }
     }
-    $('#pk-sub').textContent = monthName(pkMonth) + ', from the Task User Report. Pick rate is boxes per picking hour; a warehouse’s rate is its total boxes ÷ total picking hours. Target ' + T + ' boxes/hr. Pickers with under ' + MIN + ' boxes aren’t scored. MMS and Abadan accounts are left out.';
+    if (best) return { people: best.r.pickers || [], source: 'report for ' + rangeLabel(best.rg[0], best.rg[1]) };
+    return { people: [], source: null };
+  }
+  function renderPicking() {
+    const T = targets.pick_rate, MIN = targets.pick_min_boxes;
+    const people = [], sources = [];
+    for (const wh of WAREHOUSES) {
+      const pf = pickingFor(wh);
+      if (pf.source) sources.push(wh + ': ' + pf.source);
+      for (const p of pf.people) {
+        const boxes = n(p.boxes), rate = n(p.pickrate);
+        if (!p.name || boxes == null || !rate) continue;
+        people.push({ name: p.name, warehouse: wh, boxes, bins: n(p.bins), pickrate: rate, hours: r2(boxes / rate), result: boxes < MIN ? 'Too few boxes' : rate >= T ? 'Hit' : 'Missed' });
+      }
+    }
+    $('#pk-sub').textContent = periodLabel()[0].toUpperCase() + periodLabel().slice(1) + '. ' + (sources.length ? 'From ' + sources.join(' · ') + '. ' : 'No picking data in this period. ') +
+      'Pick rate is boxes per picking hour; a warehouse’s rate is total boxes ÷ total hours. Target ' + T + ' boxes/hr; pickers under ' + MIN + ' boxes aren’t scored. MMS and Abadan are left out.';
+    const tiles = $('#pk-tiles'), tbody = $('#pk-table tbody');
     tiles.replaceChildren(...['All', ...WAREHOUSES].map((w) => {
       const ps = people.filter((p) => w === 'All' || p.warehouse === w);
       const boxes = ps.reduce((s, p) => s + p.boxes, 0), hours = ps.reduce((s, p) => s + p.boxes / p.pickrate, 0);
       const rate = hours ? r2(boxes / hours) : null;
       const scored = ps.filter((p) => p.boxes >= MIN), hitN = scored.filter((p) => p.pickrate >= T).length;
       const t = tile((w === 'All' ? 'All warehouses' : w + ' warehouse') + ' · boxes/hr', rate == null ? '—' : fmt(rate), '',
-        ps.length ? hitN + ' of ' + scored.length + ' pickers on target · ' + fmt(boxes) + ' boxes' : 'No report this month', rate == null ? null : pill(rate >= T ? 'Hit' : 'Missed', rate >= T ? 'hit' : 'miss'));
+        ps.length ? hitN + ' of ' + scored.length + ' pickers on target · ' + fmt(boxes) + ' boxes' : 'No picking data', rate == null ? null : pill(rate >= T ? 'Hit' : 'Missed', rate >= T ? 'hit' : 'miss'));
       t.classList.add('clickable'); t.tabIndex = 0; t.setAttribute('role', 'button'); t.setAttribute('aria-pressed', String(pkWh === w));
       const go = () => { pkWh = w; renderPicking(); };
       t.addEventListener('click', go); t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
@@ -803,7 +873,7 @@ table.pkin input[type=number] { text-align: right; }
       tr.append(el('td', '', p.name), el('td', '', p.warehouse), el('td', 'r', fmt(p.boxes)), el('td', 'r', fmt(p.bins)), el('td', 'r', fmt(p.hours)), rt, res);
       return tr;
     }));
-    if (!rows.length) { const tr = el('tr'); const td = el('td', 'muted', 'No pickers for ' + pkWh + ' this month.'); td.colSpan = 7; tr.append(td); tbody.append(tr); }
+    if (!rows.length) { const tr = el('tr'); const td = el('td', 'muted', 'No pickers in this period' + (pkWh === 'All' ? '' : ' for ' + pkWh) + '.'); td.colSpan = 7; tr.append(td); tbody.append(tr); }
   }
   function parsePaste(text) {
     const rows = []; let skipped = 0;
@@ -821,24 +891,6 @@ table.pkin input[type=number] { text-align: right; }
     }
     return { rows, skipped };
   }
-  const pkNewWh = $('#pk-new-wh');
-  for (const w of WAREHOUSES) pkNewWh.append(new Option(w, w));
-  $('#pk-new-month').value = todayIso().slice(0, 7);
-  $('#pk-new-save').addEventListener('click', async () => {
-    const msg = $('#pk-new-msg'); const month = $('#pk-new-month').value, wh = pkNewWh.value;
-    if (!/^\d{4}-\d{2}$/.test(month)) { msg.textContent = 'Choose a month first.'; return; }
-    const res = parsePaste($('#pk-new-paste').value);
-    if (!res.rows.length) { msg.textContent = 'No rows found. Each line needs a name followed by boxes, bin and pick rate.'; return; }
-    if (!db) { msg.textContent = 'Sign in to claude.ai to save reports.'; return; }
-    const body = { month, warehouse: wh, pickers: res.rows, savedAt: Date.now() };
-    try { const uid = user ? await user.id() : null; if (uid) body.savedBy = uid; } catch (e) {}
-    try {
-      await db.collection('picking').doc(month + '_' + wh).set(body);
-      $('#pk-new-paste').value = '';
-      msg.textContent = 'Saved ' + res.rows.length + ' pickers for ' + wh + ', ' + monthName(month) + (res.skipped ? ' (skipped ' + res.skipped + ' MMS/Abadan rows)' : '') + '.';
-      pkMonth = month; pkWh = wh; render();
-    } catch (e) { msg.textContent = 'Couldn’t save. Check you can edit this page.'; }
-  });
 
   /* ===================== targets ===================== */
   function renderTargets() {
@@ -935,7 +987,7 @@ table.pkin input[type=number] { text-align: right; }
   const whSeg = $('#wh'), ledgerSeg = $('#ledger-filter'), dateIn = $('#date');
   dateIn.addEventListener('change', () => { if (dateIn.value && dateIn.validity.valid) switchTo(dateIn.value, curWh); });
   dateIn.addEventListener('blur', () => { dateIn.value = curDate; });
-  $('#back').addEventListener('click', () => { view = 'dash'; dWh = curWh; if (days.has(keyOf(curDate, curWh))) dDate = curDate; render(); window.scrollTo(0, 0); });
+  $('#back').addEventListener('click', () => { view = 'dash'; dWh = curWh; if (days.has(keyOf(curDate, curWh))) focusDate(curDate); render(); window.scrollTo(0, 0); });
 
   function openEntry(date, wh) { view = 'entry'; switchTo(date, wh); window.scrollTo(0, 0); }
   function switchTo(date, wh) {
@@ -1174,7 +1226,8 @@ table.pkin input[type=number] { text-align: right; }
 
   async function addFiles(fileList) {
     for (const file of fileList) {
-      const it = { id: ++itemSeq, file, name: file.name, status: 'reading', result: null, error: '', weekStart: mondayOf(upDate.value || todayIso()), date: upDate.value || todayIso(), wh: upWh.value, pickScope: 'day' };
+      const it = { id: ++itemSeq, file, name: file.name, status: 'reading', result: null, error: '', weekStart: mondayOf(upFrom.value || todayIso()), date: upFrom.value || todayIso(), to: upTo.value || upFrom.value || todayIso(), wh: upWh.value };
+      if (it.to < it.date) it.to = it.date;
       items.push(it); renderUploadList();
       try {
         const data = await readFile(file);
@@ -1189,8 +1242,6 @@ table.pkin input[type=number] { text-align: right; }
       renderUploadList();
     }
   }
-  const mondayOf = (iso) => { const d = dt(iso); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoOf(d); };
-  const addDays = (iso, k) => { const d = dt(iso); d.setDate(d.getDate() + k); return isoOf(d); };
 
   async function readWithClaude(it) {
     if (!sample) return;
@@ -1233,7 +1284,7 @@ table.pkin input[type=number] { text-align: right; }
     const r = it.result; if (!r) return [];
     if (r.kind === 'weekly') return r.byDay.map((d, i) => ({ date: addDays(it.weekStart, i), day: d })).filter((x) => Object.keys(x.day).length);
     if (r.kind === 'daily') { const day = clone(r.day); if (r.pickers) day.pickers = r.pickers; return [{ date: it.date, day }]; }
-    if (r.kind === 'picking' && it.pickScope === 'day') return [{ date: it.date, day: { pickers: r.pickers } }];
+    if (r.kind === 'picking' && it.to === it.date) return [{ date: it.date, day: { pickers: r.pickers } }];
     return [];
   }
 
@@ -1243,12 +1294,12 @@ table.pkin input[type=number] { text-align: right; }
     try {
       const uid = user ? await user.id().catch(() => null) : null;
       const dates = [];
-      if (it.result.kind === 'picking' && it.pickScope === 'month') {
-        const month = it.date.slice(0, 7);
-        const body = { month, warehouse: it.wh, pickers: it.result.pickers, savedAt: Date.now(), source: it.name };
+      const ranged = it.result.kind === 'picking' && it.to !== it.date;
+      if (ranged) {
+        const body = { from: it.date, to: it.to, warehouse: it.wh, pickers: it.result.pickers, savedAt: Date.now(), source: it.name };
         if (uid) body.savedBy = uid;
-        await db.collection('picking').doc(month + '_' + it.wh).set(body);
-        it.savedNote = 'Saved as ' + it.wh + ' picking for ' + monthName(month) + '.';
+        await db.collection('picking').doc(it.date + '_' + it.to + '_' + it.wh).set(body);
+        it.savedNote = 'Saved as ' + it.wh + ' picking for ' + rangeLabel(it.date, it.to) + '.';
       } else {
         for (const t of itemTargets(it)) {
           const key = keyOf(t.date, it.wh);
@@ -1263,11 +1314,13 @@ table.pkin input[type=number] { text-align: right; }
         it.savedNote = 'Added to ' + it.wh + ' · ' + dates.map((d) => dayMon(d)).join(', ') + '.';
       }
       const log = { filename: it.name, warehouse: it.wh, dates, kind: it.result.kind, fields: (it.result.found || []).length, pickers: (it.result.pickers || []).length, viaClaude: !!it.viaAi, savedAt: Date.now() };
-      if (it.result.kind === 'picking' && it.pickScope === 'month') log.month = it.date.slice(0, 7);
+      if (ranged) { log.from = it.date; log.to = it.to; }
       if (uid) log.savedBy = uid;
       await db.collection('uploads').add(log).catch(() => {});
       it.status = 'saved';
-      if (dates.length) { dWh = it.wh; dDate = dates[dates.length - 1]; remember(); }
+      dWh = it.wh; remember();
+      if (ranged) { pFrom = it.date; pTo = it.to; pPreset = 'custom'; periodTouched = true; }
+      else if (dates.length) { if (dates.length > 1) { pFrom = dates[0] < mondayOf(dates[0]) ? dates[0] : mondayOf(dates[0]); pTo = addDays(pFrom, 6); pPreset = 'custom'; periodTouched = true; } else focusDate(dates[0]); }
     } catch (e) { it.status = 'ready'; it.error = 'Couldn’t save. Check you can edit this page.'; }
     render();
   }
@@ -1301,12 +1354,13 @@ table.pkin input[type=number] { text-align: right; }
           const l = el('label', '', 'Week starting (Monday) '); l.htmlFor = di.id; opts.append(l, di);
         } else {
           const di = el('input'); di.type = 'date'; di.id = 'up-' + it.id + '-d'; di.value = it.date;
-          di.addEventListener('change', () => { if (di.value) { it.date = di.value; renderUploadList(); } });
-          const l = el('label', '', 'Date '); l.htmlFor = di.id; opts.append(l, di);
+          di.addEventListener('change', () => { if (di.value) { it.date = di.value; if (it.to < it.date || it.result.kind !== 'picking') it.to = it.date; renderUploadList(); } });
+          const l = el('label', '', it.result.kind === 'picking' ? 'From ' : 'Date '); l.htmlFor = di.id; opts.append(l, di);
           if (it.result.kind === 'picking') {
-            const sc = el('select'); sc.id = 'up-' + it.id + '-sc'; sc.append(new Option('This day only', 'day'), new Option('Whole month (' + monthName(it.date.slice(0, 7)) + ')', 'month')); sc.value = it.pickScope;
-            sc.addEventListener('change', () => { it.pickScope = sc.value; renderUploadList(); });
-            const l2 = el('label', '', 'Covers '); l2.htmlFor = sc.id; opts.append(l2, sc);
+            const d2 = el('input'); d2.type = 'date'; d2.id = 'up-' + it.id + '-to'; d2.value = it.to;
+            d2.addEventListener('change', () => { if (d2.value) { it.to = d2.value < it.date ? it.date : d2.value; renderUploadList(); } });
+            const l2 = el('label', '', 'To '); l2.htmlFor = d2.id; opts.append(l2, d2);
+            opts.append(el('span', 'muted', it.to === it.date ? 'Saved on that day' : 'Saved as a report for ' + datesBetween(it.date, it.to).length + ' days'));
           }
         }
         card.append(opts);
@@ -1349,16 +1403,17 @@ table.pkin input[type=number] { text-align: right; }
     const box = $('#up-log');
     const recent = uploadsLog.slice(0, 8);
     box.replaceChildren(...(recent.length ? [el('h3', '', 'Recently added')] : []), ...recent.map((u) => {
-      const d = el('div'); d.append(el('b', '', u.filename), el('span', '', u.warehouse + ' · ' + (u.month ? monthName(u.month) : (u.dates || []).map(dayMon).join(', '))), el('span', '', savedAt(u.savedAt)));
+      const d = el('div'); d.append(el('b', '', u.filename), el('span', '', u.warehouse + ' · ' + (u.from ? rangeLabel(u.from, u.to) : u.month ? monthName(u.month) : (u.dates || []).map(dayMon).join(', '))), el('span', '', savedAt(u.savedAt)));
       return d;
     }));
-    const forDay = uploadsLog.filter((u) => u.warehouse === dWh && (u.dates || []).includes(dDate));
-    $('#d-files').textContent = forDay.length ? 'Reports for this day: ' + [...new Set(forDay.map((u) => u.filename))].join(', ') : '';
+    const forDay = uploadsLog.filter((u) => u.warehouse === dWh && ((u.dates || []).some((d) => d >= pFrom && d <= pTo) || (u.from && overlap(u.from, u.to, pFrom, pTo)) || (u.month && overlap(u.month + '-01', endOfMonth(u.month + '-01'), pFrom, pTo))));
+    $('#d-files').textContent = forDay.length ? 'Reports in this period: ' + [...new Set(forDay.map((u) => u.filename))].join(', ') : '';
   }
 
-  const upDate = $('#up-date'), upWh = $('#up-wh'), upFile = $('#up-file'), upDrop = $('#up-drop');
+  const upFrom = $('#up-from'), upTo = $('#up-to'), upWh = $('#up-wh'), upFile = $('#up-file'), upDrop = $('#up-drop');
   for (const w of WAREHOUSES) upWh.append(new Option(w, w));
-  upDate.value = todayIso(); upWh.value = dWh;
+  upFrom.value = todayIso(); upTo.value = todayIso(); upWh.value = dWh;
+  upFrom.addEventListener('change', () => { if (upFrom.value && (!upTo.value || upTo.value < upFrom.value)) upTo.value = upFrom.value; });
   upFile.addEventListener('change', () => { addFiles([...upFile.files]); upFile.value = ''; });
   upDrop.addEventListener('dragover', (e) => { e.preventDefault(); upDrop.classList.add('over'); });
   upDrop.addEventListener('dragleave', () => upDrop.classList.remove('over'));
@@ -1393,7 +1448,8 @@ table.pkin input[type=number] { text-align: right; }
       const after = days.get(curKey)?.data?.savedAt;
       if (!loaded || (!dirty && before !== after)) loadWorking();
       else if (dirty && after && before !== after && !saving && !snap.metadata.hasPendingWrites) remoteChanged = true;
-      if (!loaded) { loaded = true; if (!daysFor(dWh).length) { const w = WAREHOUSES.find((x) => daysFor(x).length); if (w) dWh = w; } }
+      if (!loaded) { loaded = true; if (!daysFor(dWh).length) { const w = WAREHOUSES.find((x) => daysFor(x).length); if (w) dWh = w; }
+        const mine = daysFor(dWh); if (!periodTouched && mine.length && !mine.some(inPeriod)) { [pFrom, pTo] = weekOf(mine[mine.length - 1].date); pPreset = 'custom'; } }
       render();
     }, () => { loaded = true; render(); });
     db.collection('picking').limit(500).onSnapshot((snap) => { reports = new Map(snap.docs.filter((x) => x.exists).map((x) => [x.id, x.data()])); render(); }, () => {});
