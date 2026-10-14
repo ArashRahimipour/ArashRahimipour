@@ -2154,19 +2154,24 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
   /* ---------- source files (kept in the database in pieces) ---------- */
   const CHUNK = 190000;
   function b64(buf) { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); }
-  async function storeSource(file, meta) {
-    const ref = await db.collection('expense_files').add({ ...meta, name: file.name, type: file.type || '', size: file.size, uploadedAt: Date.now(), stored: false });
-    if (file.size <= 6 * 1024 * 1024) {
-      const data = b64(await file.arrayBuffer()); let i = 0;
-      for (let p = 0; p < data.length; p += CHUNK, i++) await db.collection('expense_files/' + ref.id + '/chunks').doc(String(i).padStart(3, '0')).set({ d: data.slice(p, p + CHUNK) });
-      await ref.update({ stored: true, chunks: i });
-    }
+  async function storeSource(b, meta) {
+    const ref = db.collection('expense_files').doc();
+    const buf = b.buf || new ArrayBuffer(0);
+    let stored = false, chunks = 0, storeError = '';
+    if (buf.byteLength > 0 && buf.byteLength <= 6 * 1024 * 1024) {
+      try {
+        const data = b64(buf);
+        for (let p = 0; p < data.length; p += CHUNK, chunks++) await db.collection('expense_files/' + ref.id + '/chunks').doc(String(chunks).padStart(3, '0')).set({ d: data.slice(p, p + CHUNK) });
+        stored = true;
+      } catch (e) { storeError = (e && (e.code || e.message)) || 'unknown'; }
+    } else storeError = buf.byteLength ? 'over 6 MB' : 'file was empty';
+    await ref.set({ ...meta, name: b.name, type: b.type || '', size: buf.byteLength, uploadedAt: Date.now(), stored, chunks, ...(storeError ? { storeError: String(storeError) } : {}) });
     return ref.id;
   }
   async function openSource(fid) {
     const f = expFiles.get(fid);
     if (!f) { exMsg = 'The source file record was not found.'; renderExRecords(); return; }
-    if (!f.stored) { exMsg = f.name + ' was too large to keep (over 6 MB); keep the original elsewhere.'; renderExRecords(); return; }
+    if (!f.stored) { exMsg = f.name + ' couldn’t be kept with the records (' + (f.storeError || 'not stored') + '); keep the original elsewhere.'; renderExRecords(); return; }
     try {
       const snap = await db.collection('expense_files/' + fid + '/chunks').get();
       const data = snap.docs.filter((d) => d.exists).sort((a, b) => (a.id < b.id ? -1 : 1)).map((d) => d.data().d).join('');
@@ -2347,9 +2352,12 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
     drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer?.files?.length) go([...e.dataTransfer.files]); });
   }
   async function exStartBatch(file, defState) {
-    const b = { id: ++itemSeq, file, name: file.name, status: 'Reading…', records: [], summary: [], estimates: [], conflicts: [], defState, error: '' };
+    const b = { id: ++itemSeq, file, name: file.name, type: file.type || '', status: 'Reading…', records: [], summary: [], estimates: [], conflicts: [], defState, error: '' };
     exBatches.unshift(b); renderExBatches();
     try {
+      b.buf = await file.arrayBuffer();
+      file = new File([b.buf], b.name, { type: b.type });
+      b.file = file;
       const read = await exReadFile(file); b.read = read;
       let res = null;
       for (const t of read.tables || []) { res = parseExpenseTable(t); if (res) { b.method = 'table'; break; } }
@@ -2432,16 +2440,22 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
       const uid = user ? await user.id().catch(() => null) : null;
       const keep = b.records.filter((r) => r.include);
       const months = [...new Set(keep.filter((r) => r.invoiceDate).map((r) => r.invoiceDate.slice(0, 7)))];
-      const fid = await storeSource(b.file, { state: b.defState || null, months, records: keep.length, conflicts: b.conflicts, estimates: b.estimates.map((e) => ({ label: String(e.label), amount: num(e.amount), basis: e.basis ? String(e.basis) : '' })), method: b.method || '', docType: b.docType || '', ...(uid ? { savedBy: uid } : {}) });
+      let fid = b.fid || null, fileNote = '';
+      if (!fid) try {
+        fid = b.fid = await storeSource(b, { state: b.defState || null, months, records: keep.length, conflicts: b.conflicts.map((c) => ({ text: String(c.text), resolved: false })), estimates: b.estimates.map((e) => ({ label: String(e.label), amount: num(e.amount), basis: e.basis ? String(e.basis) : '' })), method: b.method || '', docType: b.docType ? String(b.docType) : '', ...(uid ? { savedBy: uid } : {}) });
+        const f = expFiles.get(fid); if (f && !f.stored) fileNote = ' The source file itself couldn’t be kept (' + (f.storeError || 'not stored') + ').';
+      } catch (e) { fileNote = ' The source file couldn’t be recorded (' + ((e && (e.code || e.message)) || 'unknown') + '); records keep its name.'; }
+      if (b.savedIds == null) b.savedIds = [];
       for (const r of keep) {
+        if (r.savedId) continue;
         const body = exClean({ ...r, sourceId: fid, sourceName: b.name });
         body.flags = exFlags(r, expenses); body.createdAt = Date.now(); if (uid) body.savedBy = uid;
-        await db.collection('expenses').add(body);
+        const ref = await db.collection('expenses').add(body); r.savedId = ref.id;
       }
-      b.status = 'saved'; b.savedNote = 'Saved ' + keep.length + ' record' + (keep.length === 1 ? '' : 's') + ' with the source file linked.' + (b.conflicts.length ? ' ' + b.conflicts.length + ' summary conflict(s) are listed under Needs review.' : '');
+      b.status = 'saved'; b.savedNote = 'Saved ' + keep.length + ' record' + (keep.length === 1 ? '' : 's') + (fid ? ' with the source file linked.' : '.') + fileNote + (b.conflicts.length ? ' ' + b.conflicts.length + ' summary conflict(s) are listed under Needs review.' : '');
       const firstDate = keep.map((r) => r.invoiceDate).filter(Boolean).sort()[0];
       if (firstDate) { const y = Number(firstDate.slice(0, 4)), m = Number(firstDate.slice(5, 7)); exYear = exYMode === 'fy' ? (m >= 7 ? y : y - 1) : y; exMonth = 'all'; exFrom = exTo = ''; }
-    } catch (e) { b.saveMsg = 'Couldn’t save. Check you can edit this page.'; }
+    } catch (e) { const done = b.records.filter((r) => r.savedId).length; b.saveMsg = 'Couldn’t save' + (done ? ' all records (' + done + ' saved; press Save again for the rest)' : '') + ': ' + ((e && (e.message || e.code)) || 'unknown error') + '.'; }
     b.saving = false; renderExBatches(); render();
   }
 
