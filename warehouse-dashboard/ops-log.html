@@ -2542,9 +2542,9 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
       render();
     }, () => { loaded = true; render(); });
     db.collection('picking').limit(500).onSnapshot((snap) => { reports = new Map(snap.docs.filter((x) => x.exists).map((x) => [x.id, x.data()])); render(); }, () => {});
-    db.collection('expenses').limit(5000).onSnapshot((snap) => { expenses = snap.docs.filter((x) => x.exists).map((x) => ({ ...x.data(), id: x.id })); if (view === 'dash') render(); }, () => {});
-    db.collection('expense_files').limit(2000).onSnapshot((snap) => { expFiles = new Map(snap.docs.filter((x) => x.exists).map((x) => [x.id, { ...x.data(), id: x.id }])); if (view === 'dash') renderExpenses(); }, () => {});
-    db.collection('expense_months').limit(2000).onSnapshot((snap) => { expMonths = new Map(snap.docs.filter((x) => x.exists).map((x) => [x.id, x.data()])); if (view === 'dash') renderExpenses(); }, () => {});
+    db.collection('expenses').limit(1000).onSnapshot((snap) => { expenses = snap.docs.filter((x) => x.exists).map((x) => ({ ...x.data(), id: x.id })); if (view === 'dash') render(); }, (e) => { exMsg = 'Expense records couldn’t load (' + ((e && e.code) || 'error') + '). Reload the page.'; if (view === 'dash') renderExpenses(); });
+    db.collection('expense_files').limit(1000).onSnapshot((snap) => { expFiles = new Map(snap.docs.filter((x) => x.exists).map((x) => [x.id, { ...x.data(), id: x.id }])); if (view === 'dash') renderExpenses(); }, () => {});
+    db.collection('expense_months').limit(1000).onSnapshot((snap) => { expMonths = new Map(snap.docs.filter((x) => x.exists).map((x) => [x.id, x.data()])); if (view === 'dash') renderExpenses(); }, () => {});
     db.collection('uploads').orderBy('savedAt', 'desc').limit(200).onSnapshot((snap) => { uploadsLog = snap.docs.filter((x) => x.exists).map((x) => ({ ...x.data(), id: x.id })); if (view === 'dash') renderUploadLogs(); }, () => {});
     window.claude.use('sample').then((s) => { sample = s; for (const ui of uploaders) ui.renderList(); });
     for (const ui of uploaders) ui.renderList();
