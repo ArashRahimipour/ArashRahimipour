@@ -1406,6 +1406,36 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
   }
   const whFromStore = (s) => { const m = String(s || '').toUpperCase().match(/\b(VIC|NSW|QLD|WA)\b/); return m ? m[1] : null; };
 
+  // Ask Claude for JSON; recover a cut-short answer, retry once with a shorter request.
+  function salvageJson(t) {
+    const start = String(t || '').search(/[{\[]/); if (start < 0) return null;
+    const s = t.slice(start); let tries = 0;
+    for (let i = s.length - 1; i > 0 && tries < 300; i--) {
+      if (s[i] !== '}' && s[i] !== ']') continue; tries++;
+      const cand = s.slice(0, i + 1); const stack = []; let inStr = false, esc = false;
+      for (const ch of cand) { if (inStr) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') inStr = false; continue; } if (ch === '"') inStr = true; else if (ch === '{' || ch === '[') stack.push(ch); else if (ch === '}' || ch === ']') stack.pop(); }
+      if (inStr) continue;
+      try { return JSON.parse(cand + stack.reverse().map((c) => (c === '{' ? '}' : ']')).join('')); } catch (e) {}
+    }
+    return null;
+  }
+  async function askJson(prompt, opts, retried) {
+    try { return await sample.json(prompt, opts); }
+    catch (e) {
+      if (e && e.code === 'invalid_json' && e.text) { const v = salvageJson(e.text); if (v) return v; }
+      if (!retried && e && ['invalid_json', 'upstream_error', 'empty_completion'].includes(e.code)) return askJson(prompt + '\nKeep the answer short: descriptions under 60 characters, no unclear notes unless a value is missing.', { ...opts, modelTier: 'default' }, true);
+      throw e;
+    }
+  }
+  const sampleErr = (e) => { const c = e && e.code; const m = e && e.message ? String(e.message).slice(0, 160) : '';
+    return c === 'no_images' || c === 'images_unavailable' ? 'This view can’t send pictures to Claude.'
+      : c === 'image_rejected' ? 'Claude couldn’t accept this picture' + (m ? ' (' + m + ')' : '') + '.'
+      : c === 'image_too_big' ? 'This picture is too large to send. Crop it to the table.'
+      : c === 'not_granted' || c === 'not_declared' || c === 'sampling_disabled' ? 'Reading with Claude isn’t allowed in this view (' + c + '). Allow it in the page’s permissions.'
+      : c === 'rate_limited' ? 'Too many requests right now. Try again in a minute.'
+      : c === 'session_expired' ? 'Your session expired. Reload the page and try again.'
+      : 'Claude couldn’t read it (' + (c || 'error') + (m ? ': ' + m : '') + ').'; };
+
   async function readWithClaude(it, ui) {
     if (!sample) return;
     it.status = 'ai'; ui.renderList();
@@ -1422,9 +1452,9 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
         const lim = await sample.limits().catch(() => null);
         if (!lim || !lim.images) throw { code: 'no_images' };
         let img; try { img = await prepareImage(it.file, lim.images); } catch (e) { throw { code: 'image_too_big' }; }
-        out = await sample.json(instructions + '\n\nThe report is the attached image.', { images: [img], modelTier: 'complex' });
+        out = await askJson(instructions + '\n\nThe report is the attached image.', { images: [img], modelTier: 'complex' });
       }
-      else out = await sample.json(instructions + '\n\nReport file "' + it.name + '":\n' + String(it.raw?.text || '').slice(0, 60000), { modelTier: 'complex' });
+      else out = await askJson(instructions + '\n\nReport file "' + it.name + '":\n' + String(it.raw?.text || '').slice(0, 60000), { modelTier: 'complex' });
       const dayList = Array.isArray(out?.days) ? out.days : [];
       const pickers = (Array.isArray(out?.pickers) ? out.pickers : []).filter((p) => p && p.name && !/^(mms|abadan)\b/i.test(p.name))
         .map((p) => ({ name: String(p.name), boxes: String(Number(p.boxes) || 0), bins: String(Number(p.bins) || 0), pickrate: String(Number(p.pickrate) || 0) }));
@@ -1451,12 +1481,7 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
       else { it.status = 'error'; it.error = 'Claude couldn’t find any of the dashboard’s figures in this file.'; }
     } catch (e) {
       it.status = 'error';
-      const c = e && e.code;
-      it.error = c === 'no_images' ? 'This view can’t send pictures to Claude. Copy the table from the ERP screen and use “Paste a table” below, or export it to Excel.'
-        : c === 'image_too_big' ? 'This picture is too large to send. Crop it to the table, or use “Paste a table” below.'
-        : c === 'not_granted' ? 'Reading with Claude wasn’t allowed. Allow it in the page’s permissions, or use “Paste a table” below.'
-        : c === 'rate_limited' ? 'Too many requests right now. Try again in a minute.'
-        : 'Claude couldn’t read this file' + (c ? ' (' + c + ')' : '') + '. Use “Paste a table” below instead.';
+      it.error = sampleErr(e) + ' You can also use “Paste a table”, or send the screenshot to Claude in chat.';
     }
     ui.renderList();
   }
@@ -2294,13 +2319,13 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
     const hasText = text.replace(/\s/g, '').length > 80;
     if (hasText) {
       const parts = []; for (let p = 0; p < text.length; p += maxText) parts.push(text.slice(p, p + maxText));
-      for (let i = 0; i < parts.length; i++) { onStep && onStep('Claude is reading ' + (parts.length > 1 ? 'part ' + (i + 1) + ' of ' + parts.length : 'the document') + '…'); outs.push(await sample.json(EX_PROMPT + '\nDocument "' + fileName + '"' + (parts.length > 1 ? ' (part ' + (i + 1) + ' of ' + parts.length + '; only return what is in this part)' : '') + ':\n' + parts[i], { modelTier: 'complex' })); }
+      for (let i = 0; i < parts.length; i++) { onStep && onStep('Claude is reading ' + (parts.length > 1 ? 'part ' + (i + 1) + ' of ' + parts.length : 'the document') + '…'); outs.push(await askJson(EX_PROMPT + '\nDocument "' + fileName + '"' + (parts.length > 1 ? ' (part ' + (i + 1) + ' of ' + parts.length + '; only return what is in this part)' : '') + ':\n' + parts[i], { modelTier: 'complex' })); }
     }
     if ((read.images || []).length) {
       if (!lim || !lim.images) throw { code: 'no_images' };
       const imgs = []; for (const im of read.images) imgs.push(await prepareImage(im, lim.images));
       const per = Math.max(1, lim.images.maxCount || 1);
-      for (let i = 0; i < imgs.length; i += per) { onStep && onStep('Claude is reading ' + (read.scannedPages ? 'scanned page' : 'image') + (imgs.length > 1 ? 's ' + (i + 1) + '–' + Math.min(imgs.length, i + per) + ' of ' + imgs.length : '') + '…'); outs.push(await sample.json(EX_PROMPT + '\nRead the attached ' + (read.scannedPages ? 'scanned pages' : 'image') + ' of "' + fileName + '" (OCR the text first).', { images: imgs.slice(i, i + per), modelTier: 'complex' })); }
+      for (let i = 0; i < imgs.length; i += per) { onStep && onStep('Claude is reading ' + (read.scannedPages ? 'scanned page' : 'image') + (imgs.length > 1 ? 's ' + (i + 1) + '–' + Math.min(imgs.length, i + per) + ' of ' + imgs.length : '') + '…'); outs.push(await askJson(EX_PROMPT + '\nRead the attached ' + (read.scannedPages ? 'scanned pages' : 'image') + ' of "' + fileName + '" (OCR the text first).', { images: imgs.slice(i, i + per), modelTier: 'complex' })); }
     }
     const merged = { document: {}, records: [], summary: [], estimates: [] };
     for (const o of outs) {
@@ -2373,7 +2398,7 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
     } catch (e) {
       b.status = 'error';
       const c = e && e.code;
-      b.error = c === 'no_images' ? 'This view can’t send pictures to Claude. Upload the Word, Excel or text PDF version instead.' : c === 'not_granted' ? 'Reading with Claude wasn’t allowed. Allow it in the page’s permissions and try again.' : c === 'rate_limited' ? 'Too many requests right now. Try again in a minute.' : (e && e.message) || 'Couldn’t read this file' + (c ? ' (' + c + ')' : '') + '.';
+      b.error = c ? sampleErr(e) : (e && e.message) || 'Couldn’t read this file.';
     }
     renderExBatches();
   }
