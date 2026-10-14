@@ -1393,6 +1393,57 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
   }
 
   // Shrink a screenshot to a JPEG the image limits accept (keeps text readable).
+  /* ---------- reading text from pictures inside the page (OCR) ---------- */
+  let ocrWorkerP = null;
+  const ocrUrl = (p) => new URL(p, location.href).href;
+  function loadScriptOnce(src) { return new Promise((res, rej) => { if (window.Tesseract) return res(); const s = document.createElement('script'); s.src = src; s.onload = () => res(); s.onerror = () => rej(new Error('The picture reader didn’t load.')); document.head.append(s); }); }
+  function ocrWorker() {
+    if (!ocrWorkerP) ocrWorkerP = (async () => {
+      await loadScriptOnce(ocrUrl('ocr/tesseract.min.js'));
+      const w = await window.Tesseract.createWorker('eng', 1, { workerPath: ocrUrl('ocr/worker-wrap.js'), corePath: ocrUrl('ocr/'), langPath: ocrUrl('ocr'), workerBlobURL: false, cacheMethod: 'none' });
+      await w.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1', user_defined_dpi: '300' });
+      return w;
+    })().catch((e) => { ocrWorkerP = null; throw e; });
+    return ocrWorkerP;
+  }
+  // Enlarge 4x in greyscale: keeps decimal points in small table text.
+  async function ocrImage(blob) {
+    const w = await ocrWorker();
+    const bmp = await createImageBitmap(blob);
+    const scale = Math.max(1, Math.min(4, 7000 / bmp.width));
+    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(bmp, 0, 0, c.width, c.height);
+    const id = g.getImageData(0, 0, c.width, c.height), d = id.data;
+    for (let i = 0; i < d.length; i += 4) { const y = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; d[i] = d[i + 1] = d[i + 2] = y; }
+    g.putImageData(id, 0, 0);
+    const { data } = await w.recognize(c);
+    return data.text || '';
+  }
+  // Task User Report rows from picture text: "#  name  boxes  bin  pickrate".
+  function parseOcrPicking(text) {
+    const rows = []; let skipped = 0, unclear = 0;
+    const isNum = (s) => /^\d[\d,]*$/.test(s), isRate = (s) => /^\d+(\.\d+)?$/.test(s);
+    for (const line of String(text).split('\n')) {
+      const cols = line.split(/\s{2,}/).map((s) => s.trim()).filter(Boolean);
+      for (let j = cols.length - 3; j >= 1; j--) {
+        if (!isNum(cols[j]) || !isRate(cols[j + 2] || '') || /[a-z]{2,}/i.test(cols[j + 1] || '') || !/[a-z]{2,}/i.test(cols[j - 1] || '')) continue;
+        const name = cols[j - 1].replace(/^[^A-Za-z]+/, '').replace(/\s+-$/, '').trim();
+        if (!name || /^(user pick|boxes|bin|pickrate|showing)/i.test(name) || !/[a-z]/i.test(name)) continue;
+        if (/^(mms|abadan)\b/i.test(name)) { skipped++; break; }
+        const binTxt = cols[j + 1]; const bins = isNum(binTxt) ? binTxt.replace(/,/g, '') : '';
+        if (!bins) unclear++;
+        rows.push({ name, boxes: cols[j].replace(/,/g, ''), bins, pickrate: cols[j + 2], ...(bins ? {} : { unclear: 'bin count unreadable (' + binTxt + ')' }) });
+        break;
+      }
+    }
+    const store = (String(text).match(/\b(VIC|NSW|QLD|WA)\s+Warehouse/i) || [])[1];
+    const dates = [...String(text).matchAll(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g)].map((m) => m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0'));
+    const showing = (String(text).match(/Showing\s+\d+\s*to\s*(\d+)\s*of\s*(\d+)/i) || []);
+    return rows.length >= 2 ? { kind: 'picking', pickers: rows, skipped, unclear, store: store ? store.toUpperCase() : null, from: dates[0] || null, to: dates[1] || dates[0] || null, shown: showing[1] ? Number(showing[1]) : null, total: showing[2] ? Number(showing[2]) : null, viaOcr: true } : null;
+  }
+  // Other pictures: text lines split into columns, so weekly sheets can still be read.
+  const ocrRows = (text) => String(text).split('\n').map((l) => l.split(/\s{2,}/).map((s) => s.trim()).filter(Boolean)).filter((r) => r.length);
+
   async function prepareImage(file, lim) {
     const okType = (lim.mediaTypes || []).includes(file.type);
     if (okType && file.size <= lim.maxInputBytes) return file;
@@ -1456,9 +1507,14 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
       let out;
       if (it.raw && it.raw.image) {
         const lim = await sample.limits().catch(() => null);
-        if (!lim || !lim.images) throw { code: 'no_images' };
-        let img; try { img = await prepareImage(it.file, lim.images); } catch (e) { throw { code: 'image_too_big' }; }
-        out = await askJson(instructions + '\n\nThe report is the attached image.', { images: [img], modelTier: 'complex' });
+        if (!lim || !lim.images) {
+          if (!it.raw.text) { it.status = 'ocr'; ui.renderList(); it.raw.text = await ocrImage(it.file); it.status = 'ai'; ui.renderList(); }
+          if (!String(it.raw.text).trim()) throw { code: 'no_images' };
+          out = await askJson(instructions + '\n\nThe report is a screenshot; this is the text read from it (columns separated by wide spaces; small OCR slips possible, e.g. a missing decimal point — mark anything doubtful as unclear):\n' + String(it.raw.text).slice(0, 60000), { modelTier: 'complex' });
+        } else {
+          let img; try { img = await prepareImage(it.file, lim.images); } catch (e) { throw { code: 'image_too_big' }; }
+          out = await askJson(instructions + '\n\nThe report is the attached image.', { images: [img], modelTier: 'complex' });
+        }
       }
       else out = await askJson(instructions + '\n\nReport file "' + it.name + '":\n' + String(it.raw?.text || '').slice(0, 60000), { modelTier: 'complex' });
       const dayList = Array.isArray(out?.days) ? out.days : [];
@@ -1492,12 +1548,13 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
     ui.renderList();
   }
 
+  const cleanPickers = (list) => (list || []).filter((q) => q.name && String(q.name).trim()).map((q) => ({ name: String(q.name).trim(), boxes: String(q.boxes ?? ''), bins: String(q.bins ?? ''), pickrate: String(q.pickrate ?? '') }));
   // Dates and partial day records an item will write.
   function itemTargets(it) {
     const r = it.result; if (!r) return [];
     if (r.kind === 'weekly') return r.byDay.map((d, i) => ({ date: addDays(it.weekStart, i), day: d })).filter((x) => Object.keys(x.day).length);
     if (r.kind === 'daily') { const day = clone(r.day); if (r.pickers) day.pickers = r.pickers; return [{ date: it.date, day }]; }
-    if (r.kind === 'picking' && it.to === it.date) return [{ date: it.date, day: { pickers: r.pickers } }];
+    if (r.kind === 'picking' && it.to === it.date) return [{ date: it.date, day: { pickers: cleanPickers(r.pickers) } }];
     return [];
   }
 
@@ -1511,7 +1568,7 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
       const ranged = it.result.kind === 'picking' && it.to !== it.date;
       if (ranged) {
         pickingDoc = it.date + '_' + it.to + '_' + it.wh;
-        const body = { from: it.date, to: it.to, warehouse: it.wh, pickers: it.result.pickers, savedAt: Date.now(), source: it.name };
+        const body = { from: it.date, to: it.to, warehouse: it.wh, pickers: cleanPickers(it.result.pickers), savedAt: Date.now(), source: it.name };
         if (uid) body.savedBy = uid;
         await db.collection('picking').doc(pickingDoc).set(body);
         it.savedNote = 'Saved as ' + it.wh + ' picking for ' + rangeLabel(it.date, it.to) + '.';
@@ -1623,7 +1680,25 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
         ui.items.push(it); ui.renderList();
         try {
           const data = await readFile(f); it.raw = data;
-          if (data.image) it.status = 'needs-ai';
+          if (data.image) {
+            it.status = 'ocr'; ui.renderList();
+            try {
+              const text = await ocrImage(f); data.text = text;
+              const pk = parseOcrPicking(text);
+              if (pk) {
+                if (pk.store && WAREHOUSES.includes(pk.store)) it.wh = pk.store;
+                // Match picture-read names to pickers already saved for this warehouse.
+                const known = [...new Set([...[...reports.values()].filter((x) => x.warehouse === it.wh).flatMap((x) => (x.pickers || []).map((q) => q.name)), ...daysFor(it.wh).flatMap((d) => (d.pickers || []).map((q) => q.name))])];
+                for (const q of pk.pickers) { const lo = q.name.toLowerCase(); const hit = known.find((k) => k.toLowerCase() === lo) || known.find((k) => k.toLowerCase().startsWith(lo) && k.length - q.name.length <= 2) || known.find((k) => lo.startsWith(k.toLowerCase()) && q.name.length - k.length <= 2); if (hit) q.name = hit; }
+                it.result = pk; it.status = 'ready';
+                if (pk.from) { it.date = pk.from; it.to = pk.to && pk.to >= pk.from ? pk.to : pk.from; it.weekStart = mondayOf(pk.from); }
+                restrict(it, ui);
+              } else {
+                const res = parseRows(ocrRows(text), ui.ctx);
+                if (res) { it.result = res; it.status = 'ready'; it.viaOcr = true; restrict(it, ui); } else it.status = 'needs-ai';
+              }
+            } catch (e) { it.status = 'needs-ai'; it.ocrError = (e && e.message) || 'The picture couldn’t be read.'; }
+          }
           else { let res = null; for (const sh of data.sheets) { res = parseRows(sh.rows, ui.ctx); if (res) break; } if (res) { it.result = res; it.status = 'ready'; restrict(it, ui); } else it.status = 'needs-ai'; }
         } catch (e) { it.status = 'error'; it.error = e && e.message ? e.message : 'Couldn’t read this file.'; }
         ui.renderList();
@@ -1641,14 +1716,14 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
         const card = el('div', 'up-item');
         const head = el('div', 'up-head');
         head.append(el('span', 'name', it.name));
-        const kindTxt = { reading: 'Reading…', ai: 'Claude is reading…', saving: 'Saving…', saved: 'Added', error: 'Couldn’t read', 'needs-ai': 'Format not recognised' }[it.status] || (KIND_LABEL[it.result?.kind] + (it.viaAi ? ' · read by Claude' : ''));
+        const kindTxt = { reading: 'Reading…', ocr: 'Reading the picture…', ai: 'Claude is reading…', saving: 'Saving…', saved: 'Added', error: 'Couldn’t read', 'needs-ai': 'Format not recognised' }[it.status] || (KIND_LABEL[it.result?.kind] + (it.viaAi ? ' · read by Claude' : ''));
         head.append(el('span', 'up-kind' + (it.status === 'error' || it.status === 'needs-ai' ? ' bad' : it.status === 'saved' ? ' done' : ''), kindTxt));
         card.append(head);
         if (it.status === 'saved') card.append(el('div', 'up-prev', it.savedNote || 'Added.'));
         else if (it.status === 'error') card.append(el('div', 'up-prev', it.error));
         else if (it.status === 'needs-ai') {
           const pv = el('div', 'up-prev');
-          pv.append(el('span', '', it.raw?.image ? 'This is a picture of a report.' : 'This file isn’t in a layout the page knows (weekly sheet, Task User Report, or description and value columns).'));
+          pv.append(el('span', '', it.raw?.image ? (it.ocrError ? it.ocrError + ' ' : 'The text in this picture didn’t match a known layout. ') + 'Claude can read it instead.' : 'This file isn’t in a layout the page knows (weekly sheet, Task User Report, or description and value columns).'));
           if (sample) { const b = el('button', 'btn', 'Read it with Claude'); b.type = 'button'; b.addEventListener('click', () => readWithClaude(it, ui)); const ra = el('div', 'row-actions'); ra.append(b); pv.append(ra); }
           else pv.append(el('span', '', 'Upload it as Excel or CSV with a description column and a value column.'));
           card.append(pv);
@@ -1675,8 +1750,22 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
           card.append(o);
           const pv = el('div', 'up-prev');
           if (it.result.kind === 'picking') {
-            const top = it.result.pickers.slice().sort((a, b) => Number(b.pickrate) - Number(a.pickrate)).slice(0, 3).map((x) => x.name + ' ' + x.pickrate + '/hr').join(' · ');
-            pv.append(el('span', '', it.result.pickers.length + ' pickers' + (it.result.skipped ? ' (' + it.result.skipped + ' MMS/Abadan rows skipped)' : '') + '. Fastest: ' + top));
+            const r = it.result;
+            pv.append(el('span', '', r.pickers.length + ' pickers' + (r.skipped ? ' (' + r.skipped + ' MMS/Abadan rows skipped)' : '') + (r.viaOcr ? ' read from the picture' + (r.store ? ' · ' + r.store + ' warehouse' : '') + (r.from ? ' · ' + rangeLabel(r.from, r.to || r.from) : '') + '. Check every number against the screenshot before adding; fix anything wrong below.' : '.')));
+            if (r.total && r.shown && r.shown < r.total) pv.append(el('span', 'c-bad', 'The screenshot shows ' + r.shown + ' of ' + r.total + ' entries. Upload the next page too, or show more rows in the ERP.'));
+            const tw = el('div', 'tbl-wrap'); const t = el('table', 'pkin');
+            const hr = el('tr'); for (const x of ['Picker', 'Boxes', 'Bins', 'Boxes/hr', '']) hr.append(el('th', '', x));
+            const th = el('thead'); th.append(hr); const tb = el('tbody');
+            r.pickers.forEach((pk, i) => {
+              const tr = el('tr');
+              const cell = (k, type) => { const td = el('td'); const x = el('input'); x.type = type; x.id = p + '-' + it.id + '-pk' + i + k; x.setAttribute('aria-label', k + ' row ' + (i + 1)); x.value = pk[k] ?? ''; if (type === 'number') { x.step = 'any'; x.min = '0'; }
+                if ((k === 'bins' && !pk.bins) || (k !== 'name' && pk[k] === '')) x.style.borderColor = 'var(--bad)';
+                x.addEventListener('input', () => { pk[k] = x.value; delete pk.unclear; }); td.append(x); return td; };
+              const del = el('td'); const xb = el('button', 'x', '✕'); xb.type = 'button'; xb.setAttribute('aria-label', 'Remove ' + pk.name); xb.addEventListener('click', () => { r.pickers.splice(i, 1); ui.renderList(); }); del.append(xb);
+              tr.append(cell('name', 'text'), cell('boxes', 'number'), cell('bins', 'number'), cell('pickrate', 'number'), del); tb.append(tr);
+            });
+            t.append(th, tb); tw.append(t); pv.append(tw);
+            if (r.unclear) pv.append(el('span', 'c-bad', r.unclear + ' bin count' + (r.unclear > 1 ? 's' : '') + ' couldn’t be read (outlined in red). Bins don’t affect pick rate, but fill them in if you can.'));
           } else {
             const tl = itemTargets(it);
             pv.append(el('span', '', it.result.found.length + ' figures found' + (it.result.kind === 'weekly' ? ' across ' + tl.length + ' days: ' + tl.map((t) => wday(t.date) + ' ' + dayMon(t.date)).join(', ') : ' for ' + shortDate(it.date)) + '.'));
@@ -2328,6 +2417,14 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
     if (hasText) {
       const parts = []; for (let p = 0; p < text.length; p += maxText) parts.push(text.slice(p, p + maxText));
       for (let i = 0; i < parts.length; i++) { onStep && onStep('Claude is reading ' + (parts.length > 1 ? 'part ' + (i + 1) + ' of ' + parts.length : 'the document') + '…'); outs.push(await askJson(EX_PROMPT + '\nDocument "' + fileName + '"' + (parts.length > 1 ? ' (part ' + (i + 1) + ' of ' + parts.length + '; only return what is in this part)' : '') + ':\n' + parts[i], { modelTier: 'complex' })); }
+    }
+    if ((read.images || []).length && (!lim || !lim.images)) {
+      let ocrText = '';
+      for (let i = 0; i < read.images.length; i++) { onStep && onStep('Reading the text in ' + (read.scannedPages ? 'scanned page ' : 'picture ') + (read.images.length > 1 ? (i + 1) + ' of ' + read.images.length : '') + '…'); ocrText += '\n## ' + (read.scannedPages ? 'Scanned page ' + read.scannedPages[i] : 'Picture ' + (i + 1)) + '\n' + (await ocrImage(read.images[i])); }
+      if (!ocrText.replace(/\s/g, '').length) throw { code: 'no_images' };
+      const parts = []; for (let p = 0; p < ocrText.length; p += maxText) parts.push(ocrText.slice(p, p + maxText));
+      for (let i = 0; i < parts.length; i++) { onStep && onStep('Claude is reading the picture text…'); outs.push(await askJson(EX_PROMPT + '\nThis text was read from ' + (read.scannedPages ? 'scanned pages' : 'a screenshot') + ' of "' + fileName + '" by OCR (columns separated by wide spaces; slips such as a missing decimal point are possible — put doubtful values in unclear):\n' + parts[i], { modelTier: 'complex' })); }
+      read = { ...read, images: [] };
     }
     if ((read.images || []).length) {
       if (!lim || !lim.images) throw { code: 'no_images' };
