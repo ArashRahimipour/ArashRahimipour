@@ -76,3 +76,25 @@ description column and a value column (feeder, putaway, dispatch,
 replenishment, returns, safety). Anything else, including screenshots, can be
 read by Claude after a click. Figures are merged into that date and
 warehouse; figures already saved for other activities are kept.
+
+## Equipment expenses
+
+The dashboard's Equipment expenses section reads equipment invoices,
+maintenance and repair reports, rental invoices and consolidated expenditure
+reports (Word .docx, Excel, PDF including scanned pages, and screenshots).
+Every extracted record is shown for review before saving, with missing or
+unclear fields flagged rather than guessed. Rules:
+
+- Records come from individual dated entries; when a report has both a
+  summary and a detailed register, totals use the register and any summary
+  figure that disagrees (e.g. battery cost) is listed under Needs review.
+- Each expense is assigned to its own invoice month and year.
+- Quotes and proposals are stored separately and never counted in actual
+  totals until confirmed as an actual expense.
+- Annual estimates found in documents are listed but never entered as
+  expenses; any projection shown is labelled as an estimate with its basis.
+- Duplicates (same supplier and invoice number, or same supplier, date and
+  amount) are flagged and unticked by default, including across uploads.
+- Each record links to its uploaded source file; records can be edited,
+  deleted and exported to Excel. Months show as data, confirmed zero, or no
+  data uploaded.

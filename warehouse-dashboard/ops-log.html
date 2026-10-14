@@ -189,6 +189,33 @@ table.pkin input[type=number] { text-align: right; }
 .up-log div { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--muted); }
 .up-log b { color: var(--fg); font-weight: 600; }
 .day-files { font-size: .85rem; color: var(--muted); }
+/* equipment expenses */
+.ex-controls { gap: 8px 12px; }
+.ex-scroll { max-height: 30rem; }
+.ex-records td { white-space: nowrap; }
+.ex-records td.ex-desc { white-space: normal; min-width: 14rem; max-width: 22rem; }
+.ex-records tr.ex-sum td { border-top: 2px solid var(--line); font-weight: 600; }
+.ex-act { display: flex; gap: 6px; flex-wrap: nowrap; }
+.btn.ex-mini { padding: 2px 9px; font-size: .8rem; }
+.ex-tbl-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.ex-tbl-head h3 { margin-right: auto; }
+.ex-tbl-head input { min-width: 14rem; }
+.ex-review { display: grid; gap: 8px; }
+.ex-rv { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--warn) 12%, transparent); font-size: .9rem; }
+.ex-rv.info { background: color-mix(in srgb, var(--series) 10%, transparent); }
+.ex-rv span { flex: 1 1 20rem; }
+.ex-annual { display: grid; gap: 8px; font-size: .95rem; }
+.ex-est { border: 1px dashed var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 4px; }
+.ex-edit { border: 1px solid var(--fg); border-radius: var(--r); padding: 14px; display: grid; gap: 10px; margin-bottom: 10px; }
+.ex-flags { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+td.ex-flags { min-width: 14rem; white-space: normal; }
+.ex-rv-tbl { min-width: 72rem; }
+.ex-rv-tbl td { vertical-align: top; }
+.ex-rv-tbl input, .ex-rv-tbl select { background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font-size: .85rem; max-width: 100%; }
+.ex-rv-tbl tr.off td { opacity: .5; }
+.ex-overlay { position: fixed; inset: 0; background: rgb(0 0 0 / .6); z-index: 50; display: grid; place-items: center; padding: 16px; }
+.ex-overlay-in { background: var(--panel); border-radius: var(--r); padding: 12px; max-width: min(1100px, 100%); max-height: 100%; overflow: auto; display: grid; gap: 10px; }
+.ex-overlay-in img { max-width: 100%; height: auto; display: block; }
 .kpis { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); }
 </style>
 
@@ -216,7 +243,7 @@ table.pkin input[type=number] { text-align: right; }
       <p class="take" id="d-take">Loading saved days…</p>
       <p class="day-files" id="d-files"></p>
       <nav class="nav" aria-label="Sections">
-        <a class="chip" href="#receiving">Receiving</a><a class="chip" href="#dispatch">Dispatch</a><a class="chip" href="#picking">Picking</a><a class="chip" href="#returns">Returns</a><a class="chip" href="#history">Did the team hit target?</a><a class="chip" href="#safety">Safety</a>
+        <a class="chip" href="#receiving">Receiving</a><a class="chip" href="#dispatch">Dispatch</a><a class="chip" href="#picking">Picking</a><a class="chip" href="#returns">Returns</a><a class="chip" href="#history">Did the team hit target?</a><a class="chip" href="#safety">Safety</a><a class="chip" href="#expenses">Equipment expenses</a>
       </nav>
     </header>
 
@@ -302,6 +329,58 @@ table.pkin input[type=number] { text-align: right; }
       </details>
     </section>
 
+    <section class="section" id="expenses">
+      <div class="section-head">
+        <h2>Equipment expenses</h2>
+        <p class="muted">Invoices, maintenance reports, repairs, rentals and battery replacements for forklifts and other equipment, in AUD. Quotes and proposals are kept apart and never counted in actual totals.</p>
+      </div>
+      <div class="controls ex-controls" aria-label="Expense filters">
+        <div class="seg" id="ex-state" role="group" aria-label="State"></div>
+        <label class="ctl" for="ex-year">Year <select id="ex-year" class="sel"></select></label>
+        <div class="seg" id="ex-ymode" role="group" aria-label="Year type"></div>
+        <label class="ctl" for="ex-month">Month <select id="ex-month" class="sel"></select></label>
+        <label class="ctl" for="ex-from">From <input id="ex-from" type="date" min="2015-01-01" max="2099-12-31"></label>
+        <label class="ctl" for="ex-to">To <input id="ex-to" type="date" min="2015-01-01" max="2099-12-31"></label>
+        <button class="btn" type="button" id="ex-clear-range" hidden>Clear dates</button>
+        <div class="seg" id="ex-gst" role="group" aria-label="GST"></div>
+      </div>
+      <p class="sub" id="ex-scope"></p>
+      <div class="tiles" id="ex-tiles"></div>
+      <div class="panel" id="ex-review-panel" hidden>
+        <h3>Needs review</h3>
+        <div id="ex-review" class="ex-review"></div>
+      </div>
+      <div class="panel">
+        <h3 id="ex-chart-h">Monthly expenses</h3>
+        <p class="muted">Actual expenses by invoice month. A dashed outline means no data was uploaded for that month; a tick means the month was confirmed as having no expenses.</p>
+        <div class="legend" id="ex-legend"></div>
+        <div class="chart" id="ex-chart"></div>
+        <div class="tbl-wrap"><table class="t" id="ex-months"></table></div>
+      </div>
+      <div class="two">
+        <div class="panel"><h3>By equipment</h3><div class="tbl-wrap ex-scroll"><table class="t" id="ex-equip"></table></div></div>
+        <div class="panel"><h3>Annual cost</h3><div id="ex-annual" class="ex-annual"></div></div>
+      </div>
+      <div class="panel">
+        <div class="ex-tbl-head">
+          <h3>Expense records</h3>
+          <input id="ex-search" class="sel" type="search" placeholder="Search supplier, invoice, equipment…" aria-label="Search expense records">
+          <button class="btn" type="button" id="ex-export">Export to Excel</button>
+        </div>
+        <div id="ex-editor"></div>
+        <div class="tbl-wrap ex-scroll"><table class="t ex-records" id="ex-records"></table></div>
+      </div>
+      <div class="panel">
+        <h3>Quotes and proposals</h3>
+        <p class="muted">Not counted in any actual total. Confirm one as an actual expense once it has been invoiced.</p>
+        <div class="tbl-wrap"><table class="t ex-records" id="ex-quotes"></table></div>
+      </div>
+      <details class="sec" id="upload-expenses">
+        <summary><h3>Upload expense documents</h3><span class="muted">Word, Excel, PDF, screenshots · reviewed before saving</span></summary>
+        <div class="sec-body" id="ex-up"></div>
+      </details>
+    </section>
+
     <details class="sec" id="targets-sec">
       <summary><h2>Targets</h2><span class="muted">Shared by every warehouse</span></summary>
       <div class="sec-body">
@@ -353,6 +432,9 @@ table.pkin input[type=number] { text-align: right; }
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
 <script>
 (() => {
   /* ===================== schema ===================== */
@@ -647,6 +729,7 @@ table.pkin input[type=number] { text-align: right; }
       tile('Dispatch KPIs hit', dh, dtt, missedNames('Dispatch'), null, cls(sc.dis.hit, sc.dis.total)),
       tile('Safety standards met', sh, st, sc.safetyTotal ? (sc.safetyMet === sc.safetyTotal ? 'Clean period' : 'See safety below') : 'Not entered', null, sc.safetyTotal ? (sc.safetyMet === sc.safetyTotal ? 'c-ok' : 'c-bad') : ''),
       tile('Return rate', sc.returnRate == null ? '—' : fmt(sc.returnRate), sc.returnRate == null ? '' : '%', sc.returned == null ? 'Not entered' : fmt(sc.returned) + ' boxes returned' + (sc.shipped ? ' of ' + fmt(sc.shipped) + ' dispatched' : ''), resPill(sc.byId.return_rate)),
+      (() => { const e = expensesForDash(); return tile('Equipment expenses', e.recs.length ? audShort(e.s.total) : '—', '', e.recs.length ? e.recs.length + ' invoices · ' + (exGst === 'inc' ? 'inc' : 'ex') + ' GST · maint. and repairs ' + audShort(e.s.mr) + ' · rental ' + audShort(e.s.rental) : 'No invoices dated in this period'); })(),
     );
 
     const B = sc.byId, R = sc.agg.receiving || {};
@@ -1680,12 +1763,719 @@ table.pkin input[type=number] { text-align: right; }
     intro: 'Upload the weekly safety sheet (injuries, first aid, near misses, unsafe acts, forklift checks, PPE, housekeeping, toolbox talks). Only safety figures are saved from here.',
     dropHint: 'Weekly safety sheet · .xlsx · .xls · .csv · screenshots', templates: [['safety', 'Safety weekly sheet']], logFilter: (u) => legacyArea(u) === 'safety' });
 
+  /* ===================== equipment expenses ===================== */
+  const EX_CATS = [['maintenance', 'Maintenance'], ['repairs', 'Repairs'], ['rental', 'Rental'], ['battery', 'Battery replacement'], ['other', 'Other']];
+  const EX_CAT_LABEL = Object.fromEntries(EX_CATS);
+  const EX_GROUPS = [['mr', 'Maintenance and repairs', ['maintenance', 'repairs'], 'var(--series)'], ['rental', 'Rental', ['rental'], '#c7883a'], ['battery', 'Battery replacement', ['battery'], '#7b62c9'], ['other', 'Other', ['other'], 'var(--chart-muted)']];
+  const EX_STATES = ['VIC', 'NSW', 'QLD', 'WA'];
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const aud = (v) => (v == null || isNaN(v) ? '—' : Number(v).toLocaleString('en-AU', { style: 'currency', currency: 'AUD', minimumFractionDigits: 2 }));
+  const audShort = (v) => (v == null ? '—' : Math.abs(v) >= 10000 ? '$' + Number(v).toLocaleString('en-AU', { notation: 'compact', maximumFractionDigits: 1 }) : aud(v));
+  const ymLabel = (ym) => MONTHS[Number(ym.slice(5)) - 1] + ' ' + ym.slice(0, 4);
+  let expenses = [], expFiles = new Map(), expMonths = new Map();
+  let exState = 'All', exYear = null, exYMode = 'cal', exMonth = 'all', exFrom = '', exTo = '', exGst = 'inc', exSearch = '', exSort = 'date', exSortDir = -1;
+  let exEditing = null, exConfirmDel = null, exMsg = '';
+  try { const s = JSON.parse(localStorage.getItem('whops-ex') || 'null'); if (s) { exGst = s.gst === 'ex' ? 'ex' : 'inc'; exYMode = s.ymode === 'fy' ? 'fy' : 'cal'; } } catch (e) {}
+  const exRemember = () => { try { localStorage.setItem('whops-ex', JSON.stringify({ gst: exGst, ymode: exYMode })); } catch (e) {} };
+
+  const num = (v) => { if (v == null || v === '') return null; if (typeof v === 'number') return isFinite(v) ? v : null; const s = String(v).replace(/[$,\s]|AUD/gi, ''); if (/^\(.*\)$/.test(s)) { const x = Number(s.slice(1, -1)); return isNaN(x) ? null : -x; } const x = Number(s); return isNaN(x) ? null : x; };
+  const money2 = (v) => (v == null ? null : Math.round(v * 100) / 100);
+  const amountOf = (r) => (exGst === 'inc' ? num(r.incGst) : num(r.exGst));
+  const normKey = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const normInv = (s) => normKey(s).replace(/^(inv|invoice|no|tax)+/, '').replace(/^0+/, '');
+  // Dates in documents are Australian (day/month/year).
+  function toIso(v) {
+    if (v == null || v === '') return null;
+    if (v instanceof Date && !isNaN(v)) return isoOf(v);
+    const s = String(v).trim();
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+    m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);
+    if (m) { let y = Number(m[3]); if (y < 100) y += 2000; const d = Number(m[1]), mo = Number(m[2]); if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0'); return null; }
+    m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\.?\s+(\d{4})$/);
+    if (m) { const mo = MONTHS.findIndex((x) => m[2].toLowerCase().startsWith(x.toLowerCase())); if (mo >= 0) return m[3] + '-' + String(mo + 1).padStart(2, '0') + '-' + m[1].padStart(2, '0'); }
+    return null;
+  }
+  function guessCategory(text) {
+    const s = String(text || '').toLowerCase();
+    if (/batter/.test(s)) return 'battery';
+    if (/rental|hire|lease/.test(s)) return 'rental';
+    if (/repair|breakdown|replace|fault|damage|fix/.test(s)) return 'repairs';
+    if (/service|maintenance|\bpm\b|inspection|servic/.test(s)) return 'maintenance';
+    return null;
+  }
+  const normCategory = (c) => { const s = String(c || '').toLowerCase(); if (!s) return null; if (/batter/.test(s)) return 'battery'; if (/rent|hire|lease/.test(s)) return 'rental'; if (/repair/.test(s)) return 'repairs'; if (/mainten|service/.test(s)) return 'maintenance'; if (/other|misc/.test(s)) return 'other'; return null; };
+
+  // Duplicate keys: supplier + invoice number, else supplier + date + amount.
+  const dupKeys = (r) => {
+    const keys = [];
+    if (r.invoiceNo) keys.push('n|' + normKey(r.supplier) + '|' + normInv(r.invoiceNo));
+    const amt = num(r.incGst) ?? num(r.exGst);
+    if (r.invoiceDate && amt != null) keys.push('d|' + normKey(r.supplier) + '|' + r.invoiceDate + '|' + amt.toFixed(2));
+    return keys;
+  };
+  function exFlags(r, others) {
+    const f = [];
+    const actual = r.status === 'actual';
+    if (!r.invoiceDate) f.push('No invoice date');
+    if (!r.supplier) f.push('No supplier');
+    if (actual && !r.invoiceNo) f.push('No invoice number');
+    if (!r.equipment) f.push('No equipment name or ID');
+    if (!r.category) f.push('No category');
+    const ex = num(r.exGst), g = num(r.gst), inc = num(r.incGst);
+    if (ex == null) f.push('No amount ex GST'); if (g == null) f.push('No GST amount'); if (inc == null) f.push('No total inc GST');
+    if (ex != null && g != null && inc != null && Math.abs(ex + g - inc) > 0.05) f.push('Ex GST + GST ≠ total');
+    if (ex != null && g != null && ex > 0 && Math.abs(g - ex * 0.1) > Math.max(0.05, ex * 0.002) && g !== 0) f.push('GST is not 10% of ex GST');
+    if (r.invoiceDate && r.invoiceDate > todayIso()) f.push('Invoice date is in the future');
+    for (const u of r.unclear || []) f.push('Unclear: ' + u);
+    if (r.categoryInferred) f.push('Category taken from the description');
+    if (others) {
+      const mine = dupKeys(r);
+      const hit = others.find((o) => o !== r && o.id !== r.id && dupKeys(o).some((k) => mine.includes(k)));
+      if (hit) f.push('Possible duplicate of ' + (hit.invoiceNo ? 'invoice ' + hit.invoiceNo : hit.supplier || 'another record') + (hit.sourceName ? ' (' + hit.sourceName + ')' : hit.batch ? ' (this upload)' : ''));
+    }
+    return f;
+  }
+
+  /* ---------- period scope ---------- */
+  const fyStart = (y) => y + '-07-01', fyEnd = (y) => (y + 1) + '-06-30';
+  function yearRange(y) { return exYMode === 'fy' ? [fyStart(y), fyEnd(y)] : [y + '-01-01', y + '-12-31']; }
+  function yearMonths(y) { const [a] = yearRange(y); const out = []; let d = dt(a); for (let i = 0; i < 12; i++) { out.push(isoOf(d).slice(0, 7)); d.setMonth(d.getMonth() + 1); } return out; }
+  const yearLabel = (y) => (exYMode === 'fy' ? 'FY ' + y + '–' + String(y + 1).slice(2) : String(y));
+  function exScope() {
+    if (exFrom && exTo) return { from: exFrom <= exTo ? exFrom : exTo, to: exFrom <= exTo ? exTo : exFrom, label: rangeLabel(exFrom <= exTo ? exFrom : exTo, exFrom <= exTo ? exTo : exFrom) };
+    if (exMonth !== 'all') return { from: exMonth + '-01', to: endOfMonth(exMonth + '-01'), label: ymLabel(exMonth) };
+    const [a, b] = yearRange(exYear); return { from: a, to: b, label: yearLabel(exYear) };
+  }
+  const stateOk = (r) => exState === 'All' || r.state === exState;
+  const inScope = (r, sc) => r.invoiceDate && r.invoiceDate >= sc.from && r.invoiceDate <= sc.to;
+  const groupOf = (cat) => (EX_GROUPS.find((g) => g[2].includes(cat)) || EX_GROUPS[3])[0];
+  function sumBy(list) {
+    const out = { total: 0, mr: 0, rental: 0, battery: 0, other: 0, missing: 0, count: list.length };
+    for (const r of list) { const a = amountOf(r); if (a == null) { out.missing++; continue; } out.total += a; out[groupOf(r.category)] += a; }
+    return out;
+  }
+  // Month coverage for the state filter: data, confirmed zero, or nothing uploaded.
+  function monthStatus(ym, recs) {
+    const has = recs.some((r) => r.invoiceDate && r.invoiceDate.slice(0, 7) === ym);
+    if (has) return 'data';
+    const states = exState === 'All' ? EX_STATES : [exState];
+    const conf = states.filter((s) => expMonths.get(s + '_' + ym)?.confirmedZero).length;
+    if (conf === states.length) return 'zero';
+    if (conf) return 'partial';
+    const anyFile = [...expFiles.values()].some((f) => (f.months || []).includes(ym) && (exState === 'All' || f.state === exState));
+    return anyFile ? 'file' : 'none';
+  }
+
+  /* ---------- controls ---------- */
+  const exYearSel = $('#ex-year'), exMonthSel = $('#ex-month'), exFromIn = $('#ex-from'), exToIn = $('#ex-to');
+  exYearSel.addEventListener('change', () => { exYear = Number(exYearSel.value); exMonth = 'all'; render(); });
+  exMonthSel.addEventListener('change', () => { exMonth = exMonthSel.value; exFrom = exTo = ''; render(); });
+  const exRange = () => { if (exFromIn.value && exToIn.value && exFromIn.validity.valid && exToIn.validity.valid) { exFrom = exFromIn.value; exTo = exToIn.value; render(); } };
+  exFromIn.addEventListener('change', exRange); exToIn.addEventListener('change', exRange);
+  $('#ex-clear-range').addEventListener('click', () => { exFrom = exTo = ''; exFromIn.value = exToIn.value = ''; render(); });
+  $('#ex-search').addEventListener('input', (e) => { exSearch = e.target.value; renderExRecords(); });
+
+  function renderExpenses() {
+    const years = [...new Set(expenses.filter((r) => r.invoiceDate).map((r) => { const y = Number(r.invoiceDate.slice(0, 4)), m = Number(r.invoiceDate.slice(5, 7)); return exYMode === 'fy' ? (m >= 7 ? y : y - 1) : y; }))];
+    const now = dt(todayIso()), curY = exYMode === 'fy' ? (now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1) : now.getFullYear();
+    if (!years.includes(curY)) years.push(curY);
+    years.sort((a, b) => b - a);
+    if (exYear == null || !years.includes(exYear)) exYear = years.find((y) => expenses.some((r) => r.status === 'actual' && r.invoiceDate && r.invoiceDate >= yearRange(y)[0] && r.invoiceDate <= yearRange(y)[1])) ?? curY;
+    exYearSel.replaceChildren(...years.map((y) => new Option(yearLabel(y), y))); exYearSel.value = exYear;
+    const ms = yearMonths(exYear);
+    if (exMonth !== 'all' && !ms.includes(exMonth)) exMonth = 'all';
+    exMonthSel.replaceChildren(new Option('All months', 'all'), ...ms.map((m) => new Option(ymLabel(m), m))); exMonthSel.value = exMonth;
+    if (document.activeElement !== exFromIn) exFromIn.value = exFrom; if (document.activeElement !== exToIn) exToIn.value = exTo;
+    $('#ex-clear-range').hidden = !(exFrom && exTo);
+    segInto($('#ex-state'), ['All', ...EX_STATES], () => exState, (w) => { exState = w; });
+    segInto($('#ex-ymode'), ['cal', 'fy'], () => exYMode, (m) => { exYMode = m; exYear = null; exMonth = 'all'; exRemember(); }, (m) => (m === 'cal' ? 'Calendar year' : 'Financial year'));
+    segInto($('#ex-gst'), ['inc', 'ex'], () => exGst, (g) => { exGst = g; exRemember(); }, (g) => (g === 'inc' ? 'Inc GST' : 'Ex GST'));
+
+    const sc = exScope();
+    const actual = expenses.filter((r) => r.status === 'actual' && stateOk(r));
+    const quotes = expenses.filter((r) => r.status !== 'actual' && stateOk(r));
+    const inP = actual.filter((r) => inScope(r, sc));
+    const s = sumBy(inP);
+    const [ya] = yearRange(exYear); const ytdEnd = todayIso() < yearRange(exYear)[1] ? todayIso() : yearRange(exYear)[1];
+    const ytd = sumBy(actual.filter((r) => r.invoiceDate && r.invoiceDate >= ya && r.invoiceDate <= ytdEnd));
+    const qIn = sumBy(quotes.filter((r) => !r.invoiceDate || inScope(r, sc)));
+    const undated = actual.filter((r) => !r.invoiceDate).length;
+    $('#ex-scope').textContent = (exState === 'All' ? 'All states' : exState) + ' · ' + sc.label + ' · ' + (exGst === 'inc' ? 'including GST' : 'excluding GST') + ' · AUD';
+    const gstNote = s.missing ? ' · ' + s.missing + ' without an amount ' + (exGst === 'inc' ? 'inc' : 'ex') + ' GST' : '';
+    $('#ex-tiles').replaceChildren(
+      tile('Actual expenses · ' + sc.label, audShort(s.total), '', s.count + ' invoices' + gstNote),
+      tile('Maintenance and repairs', audShort(s.mr), '', 'Maintenance ' + audShort(sumBy(inP.filter((r) => r.category === 'maintenance')).total) + ' · repairs ' + audShort(sumBy(inP.filter((r) => r.category === 'repairs')).total)),
+      tile('Rental', audShort(s.rental), '', 'By invoice month'),
+      tile('Battery replacement', audShort(s.battery), '', 'Other ' + audShort(s.other)),
+      tile('Year to date · ' + yearLabel(exYear), audShort(ytd.total), '', 'Actual, ' + dayMon(ya) + ' – ' + dayMon(ytdEnd)),
+      tile('Quotes and proposals', audShort(qIn.total), '', 'Not in actual totals · ' + qIn.count + ' items'),
+    );
+    renderExReview(undated);
+    drawExChart(actual);
+    renderExEquip(inP);
+    renderExAnnual(actual);
+    renderExRecords();
+    renderExQuotes(quotes);
+  }
+
+  function renderExReview(undated) {
+    const box = $('#ex-review'); const items = [];
+    for (const f of expFiles.values()) {
+      if (exState !== 'All' && f.state !== exState) continue;
+      for (const c of f.conflicts || []) if (!c.resolved) items.push({ text: f.name + ': ' + c.text, file: f, c });
+      if ((f.estimates || []).length) items.push({ text: f.name + ': ' + f.estimates.length + ' estimate' + (f.estimates.length > 1 ? 's' : '') + ' found and not entered as actual expenses (' + f.estimates.map((e) => e.label + ' ' + aud(num(e.amount))).join('; ') + ')', file: f, info: true });
+    }
+    const flagged = expenses.filter((r) => stateOk(r) && (r.flags || []).length && !r.reviewed);
+    if (flagged.length) items.push({ text: flagged.length + ' saved record' + (flagged.length > 1 ? 's have' : ' has') + ' missing or unclear details. They show a “Check” tag in the table below.' });
+    if (undated) items.push({ text: undated + ' actual record' + (undated > 1 ? 's have' : ' has') + ' no invoice date, so ' + (undated > 1 ? 'they are' : 'it is') + ' not in any month total.' });
+    $('#ex-review-panel').hidden = !items.length;
+    box.replaceChildren(...items.map((it) => {
+      const d = el('div', 'ex-rv' + (it.info ? ' info' : ''));
+      d.append(el('span', '', it.text));
+      if (it.c && db) { const b = el('button', 'btn', 'Mark reviewed'); b.type = 'button'; b.addEventListener('click', async () => { const conflicts = it.file.conflicts.map((x) => (x === it.c ? { ...x, resolved: true } : x)); await db.collection('expense_files').doc(it.file.id).update({ conflicts }).catch(() => {}); }); d.append(b); }
+      return d;
+    }));
+  }
+
+  function drawExChart(actual) {
+    const box = $('#ex-chart'), ms = yearMonths(exYear);
+    $('#ex-chart-h').textContent = 'Monthly expenses · ' + yearLabel(exYear) + ' · ' + (exGst === 'inc' ? 'inc GST' : 'ex GST');
+    $('#ex-legend').replaceChildren(...EX_GROUPS.map(([, label, , col]) => { const s = el('span'); const i = el('i'); i.style.background = col; s.append(i, label); return s; }));
+    const data = ms.map((m) => { const recs = actual.filter((r) => r.invoiceDate && r.invoiceDate.slice(0, 7) === m); return { m, s: sumBy(recs), st: monthStatus(m, actual), n: recs.length }; });
+    const W = Math.max(320, box.clientWidth || 700), H = 230, left = 56, bottom = 26, top = 14;
+    const max = Math.max(1, ...data.map((d) => d.s.total)) * 1.12;
+    const y = (v) => top + (H - bottom - top) * (1 - v / max);
+    const step = (W - left - 6) / 12, bw = Math.min(34, step * 0.62);
+    const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': 'Monthly equipment expenses' });
+    for (const tv of [0, max / 3, (2 * max) / 3]) {
+      svg.append(sv('line', { x1: left, x2: W - 6, y1: y(tv), y2: y(tv), style: 'stroke: var(--grid)' }));
+      const tx = sv('text', { x: left - 6, y: y(tv), dy: '0.32em', 'text-anchor': 'end', style: 'fill: var(--muted); font-size: 12px' }); tx.textContent = audShort(Math.round(tv)); svg.append(tx);
+    }
+    data.forEach((d, i) => {
+      const cx = left + step * i + step / 2; let base = 0;
+      const sel = exMonth === d.m;
+      if (d.st === 'data') {
+        for (const [key, label, , col] of EX_GROUPS) {
+          const v = d.s[key]; if (!v) continue;
+          const r = sv('rect', { x: cx - bw / 2, y: y(base + v), width: bw, height: Math.max(0, y(base) - y(base + v)), style: 'fill: ' + col + (sel ? '' : '; opacity: .92') });
+          r.addEventListener('pointermove', (e) => showTip(e, ymLabel(d.m), [label + ' ' + aud(v), 'Month total ' + aud(d.s.total) + ' · ' + d.n + ' invoices']));
+          r.addEventListener('pointerleave', hideTip); svg.append(r); base += v;
+        }
+        if (!d.s.total) { const t = sv('text', { x: cx, y: y(0) - 6, 'text-anchor': 'middle', style: 'fill: var(--muted); font-size: 11px' }); t.textContent = '$0'; svg.append(t); }
+      } else {
+        const r = sv('rect', { x: cx - bw / 2, y: y(0) - 26, width: bw, height: 26, rx: 4, 'stroke-dasharray': d.st === 'zero' ? '' : '3 3', style: 'fill: none; stroke: ' + (d.st === 'zero' ? 'var(--ok)' : 'var(--line)') });
+        r.addEventListener('pointermove', (e) => showTip(e, ymLabel(d.m), [d.st === 'zero' ? 'Confirmed: no expenses' : d.st === 'partial' ? 'Some states confirmed no expenses; others have no data' : d.st === 'file' ? 'Documents uploaded, no invoices dated this month' : 'No data uploaded']));
+        r.addEventListener('pointerleave', hideTip); svg.append(r);
+        const t = sv('text', { x: cx, y: y(0) - 9, 'text-anchor': 'middle', style: 'font-size: 11px; fill: ' + (d.st === 'zero' ? 'var(--ok)' : 'var(--muted)') }); t.textContent = d.st === 'zero' ? '✓ $0' : 'none'; svg.append(t);
+      }
+      const tx = sv('text', { x: cx, y: H - 7, 'text-anchor': 'middle', style: 'font-size: 12px; fill: ' + (sel ? 'var(--fg)' : 'var(--muted)') + (sel ? '; font-weight: 600' : '') }); tx.textContent = MONTHS[Number(d.m.slice(5)) - 1]; svg.append(tx);
+      const hit = sv('rect', { x: cx - step / 2, y: top, width: step, height: H - top - bottom, style: 'fill: transparent; cursor: pointer' });
+      hit.addEventListener('click', () => { exMonth = exMonth === d.m ? 'all' : d.m; exFrom = exTo = ''; render(); });
+      svg.insertBefore(hit, svg.firstChild);
+    });
+    box.replaceChildren(svg);
+    // month table
+    const t = $('#ex-months');
+    const hr = el('tr'); for (const h of ['Month', 'Maintenance and repairs', 'Rental', 'Battery', 'Other', 'Total', 'Data']) hr.append(el('th', h === 'Month' || h === 'Data' ? '' : 'r', h));
+    const thead = el('thead'); thead.append(hr);
+    const tb = el('tbody');
+    for (const d of data) {
+      const tr = el('tr'); tr.append(el('td', '', ymLabel(d.m)));
+      const dataRow = d.st === 'data';
+      for (const k of ['mr', 'rental', 'battery', 'other', 'total']) tr.append(el('td', 'r' + (k === 'total' ? ' wk' : ''), dataRow ? aud(d.s[k]) : d.st === 'zero' ? aud(0) : '—'));
+      const st = el('td');
+      if (dataRow) st.append(el('span', '', d.n + ' invoice' + (d.n > 1 ? 's' : '') + (d.s.missing ? ' · ' + d.s.missing + ' without amount' : '')));
+      else if (d.st === 'zero') st.append(pill('Confirmed no expenses', 'hit'));
+      else st.append(pill(d.st === 'partial' ? 'Partly confirmed' : d.st === 'file' ? 'No invoices this month' : 'No data uploaded', 'na'));
+      if (!dataRow && db && exState !== 'All') {
+        const b = el('button', 'btn ex-mini', d.st === 'zero' ? 'Undo' : 'Confirm no expenses'); b.type = 'button';
+        b.addEventListener('click', async () => {
+          const ref = db.collection('expense_months').doc(exState + '_' + d.m);
+          try { if (d.st === 'zero') await ref.delete(); else { const uid = user ? await user.id().catch(() => null) : null; await ref.set({ state: exState, month: d.m, confirmedZero: true, at: Date.now(), ...(uid ? { by: uid } : {}) }); } } catch (e) {}
+        });
+        st.append(' ', b);
+      }
+      tr.append(st); tb.append(tr);
+    }
+    t.replaceChildren(thead, tb);
+    if (exState === 'All') t.caption = null;
+  }
+
+  function renderExEquip(list) {
+    const t = $('#ex-equip');
+    const by = new Map();
+    for (const r of list) { const k = r.equipment || '(not given)'; const x = by.get(k) || []; x.push(r); by.set(k, x); }
+    const rows = [...by.entries()].map(([k, recs]) => ({ k, s: sumBy(recs), n: recs.length })).sort((a, b) => b.s.total - a.s.total);
+    const hr = el('tr'); for (const h of ['Equipment', 'Maint. and repairs', 'Rental', 'Battery', 'Other', 'Total']) hr.append(el('th', h === 'Equipment' ? '' : 'r', h));
+    const thead = el('thead'); thead.append(hr);
+    const tb = el('tbody');
+    if (!rows.length) { const tr = el('tr'); const td = el('td', 'muted', 'No actual expenses in this period.'); td.colSpan = 6; tr.append(td); tb.append(tr); }
+    for (const r of rows) { const tr = el('tr'); tr.append(el('td', '', r.k + ' (' + r.n + ')')); for (const k of ['mr', 'rental', 'battery', 'other', 'total']) tr.append(el('td', 'r' + (k === 'total' ? ' wk' : ''), aud(r.s[k]))); tb.append(tr); }
+    t.replaceChildren(thead, tb);
+  }
+
+  function renderExAnnual(actual) {
+    const box = $('#ex-annual'); const [a, b] = yearRange(exYear);
+    const yr = actual.filter((r) => r.invoiceDate && r.invoiceDate >= a && r.invoiceDate <= b);
+    const s = sumBy(yr);
+    const ms = yearMonths(exYear).filter((m) => m <= todayIso().slice(0, 7));
+    const covered = ms.filter((m) => ['data', 'zero'].includes(monthStatus(m, actual)));
+    const kids = [];
+    const p1 = el('p'); p1.append(el('b', '', 'Actual ' + yearLabel(exYear) + ': ' + aud(s.total)), ' from ' + s.count + ' recorded invoice' + (s.count === 1 ? '' : 's') + (s.missing ? ' (' + s.missing + ' without an amount, not included)' : '') + '.');
+    kids.push(p1);
+    kids.push(el('p', 'muted', 'Covered months: ' + covered.length + ' of 12' + (covered.length < ms.length ? '; ' + (ms.length - covered.length) + ' month' + (ms.length - covered.length > 1 ? 's' : '') + ' so far have no data uploaded.' : '.')));
+    if (covered.length && covered.length < 12) {
+      const avg = s.total / covered.length, est = avg * 12;
+      const d = el('div', 'ex-est');
+      d.append(el('div', 'pill na', 'Estimate · not an actual cost'), el('p', '', 'Projected full year ' + aud(est)),
+        el('p', 'muted', 'Basis: ' + aud(s.total) + ' actual across ' + covered.length + ' covered month' + (covered.length > 1 ? 's' : '') + ' (months with invoices or confirmed as no expenses) = ' + aud(avg) + ' a month, × 12. Months with no data are left out of the average.'));
+      kids.push(d);
+    }
+    box.replaceChildren(...kids);
+  }
+
+  const EX_COLS = [['invoiceDate', 'Date'], ['state', 'State'], ['supplier', 'Supplier'], ['invoiceNo', 'Invoice'], ['equipment', 'Equipment'], ['description', 'Description'], ['category', 'Category'], ['exGst', 'Ex GST'], ['gst', 'GST'], ['incGst', 'Inc GST']];
+  function exRowCells(r, tr) {
+    for (const [k] of EX_COLS) {
+      const v = r[k];
+      const td = el('td', ['exGst', 'gst', 'incGst'].includes(k) ? 'r' : k === 'description' ? 'ex-desc' : '', k === 'category' ? (EX_CAT_LABEL[v] || '—') : ['exGst', 'gst', 'incGst'].includes(k) ? aud(num(v)) : k === 'invoiceDate' ? (v ? fullDate(v) : '—') : v || '—');
+      tr.append(td);
+    }
+  }
+  function exHead(extra) {
+    const hr = el('tr');
+    for (const [k, label] of EX_COLS) { const th = el('th', ['exGst', 'gst', 'incGst'].includes(k) ? 'r' : ''); const b = el('button', 'th-btn', label); b.type = 'button'; b.addEventListener('click', () => { if (exSort === k) exSortDir = -exSortDir; else { exSort = k; exSortDir = k === 'invoiceDate' || ['exGst', 'gst', 'incGst'].includes(k) ? -1 : 1; } renderExpenses(); }); if (exSort === k) th.setAttribute('aria-sort', exSortDir > 0 ? 'ascending' : 'descending'); th.append(b); hr.append(th); }
+    for (const x of extra) hr.append(el('th', '', x));
+    const thead = el('thead'); thead.append(hr); return thead;
+  }
+  const exSorter = (a, b) => { const k = exSort === 'date' ? 'invoiceDate' : exSort; let av = a[k], bv = b[k]; if (['exGst', 'gst', 'incGst'].includes(k)) { av = num(av) ?? -1e12; bv = num(bv) ?? -1e12; } else { av = String(av || ''); bv = String(bv || ''); } return (av < bv ? -1 : av > bv ? 1 : 0) * exSortDir; };
+  function exActions(r, isQuote) {
+    const td = el('td', 'ex-act');
+    if (r.sourceId) { const b = el('button', 'btn ex-mini', 'Source'); b.type = 'button'; b.title = r.sourceName || ''; b.addEventListener('click', () => openSource(r.sourceId)); td.append(b); }
+    if (db) {
+      if (isQuote) { const c = el('button', 'btn ex-mini', 'Confirm as actual'); c.type = 'button'; c.addEventListener('click', () => { exEditing = { ...clone(r), status: 'actual' }; renderExRecords(); $('#ex-editor').scrollIntoView({ block: 'nearest' }); }); td.append(c); }
+      const e = el('button', 'btn ex-mini', 'Edit'); e.type = 'button'; e.addEventListener('click', () => { exEditing = clone(r); renderExRecords(); $('#ex-editor').scrollIntoView({ block: 'nearest' }); }); td.append(e);
+      if (exConfirmDel === r.id) {
+        const y = el('button', 'btn ex-mini danger', 'Delete for good'); y.type = 'button'; y.addEventListener('click', async () => { exConfirmDel = null; await db.collection('expenses').doc(r.id).delete().catch(() => { exMsg = 'Couldn’t delete. Only people who can edit this page can delete records.'; }); });
+        const n2 = el('button', 'btn ex-mini', 'Keep'); n2.type = 'button'; n2.addEventListener('click', () => { exConfirmDel = null; renderExpenses(); });
+        td.append(y, n2);
+      } else { const d = el('button', 'btn ex-mini danger', 'Delete'); d.type = 'button'; d.addEventListener('click', () => { exConfirmDel = r.id; renderExpenses(); }); td.append(d); }
+    }
+    return td;
+  }
+  function renderExRecords() {
+    const t = $('#ex-records'); const sc = exScope();
+    const q = exSearch.trim().toLowerCase();
+    const rows = expenses.filter((r) => r.status === 'actual' && stateOk(r) && (!r.invoiceDate || inScope(r, sc)))
+      .filter((r) => !q || [r.supplier, r.invoiceNo, r.equipment, r.description, EX_CAT_LABEL[r.category], r.state, r.sourceName].some((v) => String(v || '').toLowerCase().includes(q)))
+      .sort(exSorter);
+    const tb = el('tbody');
+    for (const r of rows) {
+      const tr = el('tr'); exRowCells(r, tr);
+      const fl = el('td'); if ((r.flags || []).length && !r.reviewed) { const p = pill('Check', 'miss'); p.title = r.flags.join('\n'); fl.append(p); fl.title = r.flags.join('\n'); } else fl.append(pill('OK', 'hit'));
+      tr.append(fl, exActions(r, false)); tb.append(tr);
+    }
+    if (!rows.length) { const tr = el('tr'); const td = el('td', 'muted', expenses.length ? 'No actual expenses match this period and search.' : 'No expenses yet. Open “Upload expense documents” below.'); td.colSpan = EX_COLS.length + 2; tr.append(td); tb.append(tr); }
+    const sumRow = el('tr', 'ex-sum'); const s = sumBy(rows.filter((r) => r.invoiceDate));
+    sumRow.append(el('td', '', rows.length + ' records')); for (let i = 1; i < EX_COLS.length - 1; i++) sumRow.append(el('td'));
+    sumRow.append(el('td', 'r wk', aud(s.total)), el('td', '', exGst === 'inc' ? 'inc GST' : 'ex GST'), el('td'));
+    if (rows.length) tb.append(sumRow);
+    t.replaceChildren(exHead(['Review', '']), tb);
+    renderExEditor();
+  }
+  function renderExQuotes(list) {
+    const t = $('#ex-quotes'); const tb = el('tbody');
+    for (const r of list.slice().sort(exSorter)) { const tr = el('tr'); exRowCells(r, tr); tr.append(el('td', '', r.status === 'proposal' ? 'Proposal' : 'Quote'), exActions(r, true)); tb.append(tr); }
+    if (!list.length) { const tr = el('tr'); const td = el('td', 'muted', 'No quotes or proposals.'); td.colSpan = EX_COLS.length + 2; tr.append(td); tb.append(tr); }
+    t.replaceChildren(exHead(['Type', '']), tb);
+  }
+
+  /* ---------- record editor (review rows and saved records share it) ---------- */
+  function exFieldInputs(r, onChange, idp) {
+    const wrap = el('div', 'grid ex-fields');
+    const add = (k, label, input) => { const f = el('div', 'f'); const l = el('label', '', label); input.id = idp + '-' + k; l.htmlFor = input.id; f.append(l, input); wrap.append(f); };
+    const inp = (k, type) => { const i = el('input'); i.type = type || 'text'; if (type === 'number') { i.step = '0.01'; i.inputMode = 'decimal'; } i.value = r[k] ?? ''; i.addEventListener('input', () => { r[k] = i.value === '' ? null : i.value; if (k === 'category') r.categoryInferred = false; onChange(); }); return i; };
+    const sel = (k, opts) => { const s = el('select'); for (const [v, l] of opts) s.append(new Option(l, v)); s.value = r[k] ?? ''; s.addEventListener('change', () => { r[k] = s.value || null; if (k === 'category') r.categoryInferred = false; onChange(); }); return s; };
+    add('status', 'Type', sel('status', [['actual', 'Actual expense'], ['quote', 'Quote'], ['proposal', 'Proposal']]));
+    add('invoiceDate', 'Invoice date', inp('invoiceDate', 'date'));
+    add('state', 'State', sel('state', [['', '—'], ...EX_STATES.map((s) => [s, s])]));
+    add('supplier', 'Supplier', inp('supplier'));
+    add('invoiceNo', 'Invoice number', inp('invoiceNo'));
+    add('equipment', 'Equipment name or ID', inp('equipment'));
+    add('category', 'Category', sel('category', [['', '—'], ...EX_CATS]));
+    add('exGst', 'Amount ex GST', inp('exGst', 'number'));
+    add('gst', 'GST', inp('gst', 'number'));
+    add('incGst', 'Total inc GST', inp('incGst', 'number'));
+    const df = el('div', 'f'); df.style.gridColumn = '1 / -1'; const dl = el('label', '', 'Description'); const ta = el('textarea'); ta.id = idp + '-description'; dl.htmlFor = ta.id; ta.value = r.description || ''; ta.addEventListener('input', () => { r.description = ta.value; onChange(); }); df.append(dl, ta); wrap.append(df);
+    return wrap;
+  }
+  function gstHelpers(r, redraw) {
+    const ra = el('div', 'row-actions');
+    const ex = num(r.exGst), g = num(r.gst), inc = num(r.incGst);
+    const mk = (label, fn) => { const b = el('button', 'btn ex-mini', label); b.type = 'button'; b.addEventListener('click', () => { fn(); redraw(); }); ra.append(b); };
+    if (ex != null && g != null && inc == null) mk('Total = ex GST + GST', () => { r.incGst = String(money2(ex + g)); });
+    if (inc != null && g != null && ex == null) mk('Ex GST = total − GST', () => { r.exGst = String(money2(inc - g)); });
+    if (inc != null && ex != null && g == null) mk('GST = total − ex GST', () => { r.gst = String(money2(inc - ex)); });
+    if (ex != null && g == null && inc == null) mk('Add 10% GST', () => { r.gst = String(money2(ex * 0.1)); r.incGst = String(money2(ex * 1.1)); });
+    if (inc != null && g == null && ex == null) mk('Total includes 10% GST', () => { r.exGst = String(money2(inc / 1.1)); r.gst = String(money2(inc - inc / 1.1)); });
+    return ra.children.length ? ra : null;
+  }
+  function renderExEditor() {
+    const box = $('#ex-editor');
+    if (!exEditing) { box.replaceChildren(...(exMsg ? [el('p', 'state', exMsg)] : [])); return; }
+    const r = exEditing;
+    const panel = el('div', 'ex-edit');
+    const flagsBox = el('div', 'ex-flags');
+    const paint = () => { const f = exFlags(r, expenses); flagsBox.replaceChildren(...(f.length ? f.map((x) => el('span', 'pill miss', x)) : [el('span', 'pill hit', 'Nothing missing')])); };
+    panel.append(el('h3', '', r.id ? 'Edit record' : 'New record'), exFieldInputs(r, paint, 'exe'), flagsBox);
+    const gh = gstHelpers(r, renderExEditor); if (gh) panel.append(gh);
+    const ra = el('div', 'row-actions');
+    const save = el('button', 'btn primary', 'Save'); save.type = 'button';
+    save.addEventListener('click', async () => {
+      const body = exClean(r); body.flags = exFlags(r, expenses); body.reviewed = true; body.updatedAt = Date.now();
+      try { if (r.id) await db.collection('expenses').doc(r.id).set(body); else await db.collection('expenses').add({ ...body, createdAt: Date.now() }); exEditing = null; exMsg = 'Saved.'; } catch (e) { exMsg = 'Couldn’t save. Check you can edit this page.'; }
+      renderExpenses();
+    });
+    const cancel = el('button', 'btn', 'Cancel'); cancel.type = 'button'; cancel.addEventListener('click', () => { exEditing = null; renderExRecords(); });
+    ra.append(save, cancel, el('span', 'state', exMsg)); panel.append(ra);
+    paint(); box.replaceChildren(panel);
+  }
+  function exClean(r) {
+    const out = {};
+    for (const k of ['status', 'invoiceDate', 'state', 'supplier', 'invoiceNo', 'equipment', 'description', 'category', 'sourceId', 'sourceName', 'sourceRef', 'createdAt', 'savedBy']) if (r[k] != null && r[k] !== '') out[k] = r[k];
+    for (const k of ['exGst', 'gst', 'incGst']) { const v = num(r[k]); if (v != null) out[k] = money2(v); }
+    if (out.invoiceDate) out.month = out.invoiceDate.slice(0, 7);
+    if (r.unclear && r.unclear.length) out.unclear = r.unclear;
+    if (r.categoryInferred) out.categoryInferred = true;
+    out.status = out.status || 'actual';
+    return out;
+  }
+
+  /* ---------- source files (kept in the database in pieces) ---------- */
+  const CHUNK = 190000;
+  function b64(buf) { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); }
+  async function storeSource(file, meta) {
+    const ref = await db.collection('expense_files').add({ ...meta, name: file.name, type: file.type || '', size: file.size, uploadedAt: Date.now(), stored: false });
+    if (file.size <= 6 * 1024 * 1024) {
+      const data = b64(await file.arrayBuffer()); let i = 0;
+      for (let p = 0; p < data.length; p += CHUNK, i++) await db.collection('expense_files/' + ref.id + '/chunks').doc(String(i).padStart(3, '0')).set({ d: data.slice(p, p + CHUNK) });
+      await ref.update({ stored: true, chunks: i });
+    }
+    return ref.id;
+  }
+  async function openSource(fid) {
+    const f = expFiles.get(fid);
+    if (!f) { exMsg = 'The source file record was not found.'; renderExRecords(); return; }
+    if (!f.stored) { exMsg = f.name + ' was too large to keep (over 6 MB); keep the original elsewhere.'; renderExRecords(); return; }
+    try {
+      const snap = await db.collection('expense_files/' + fid + '/chunks').get();
+      const data = snap.docs.filter((d) => d.exists).sort((a, b) => (a.id < b.id ? -1 : 1)).map((d) => d.data().d).join('');
+      const bin = atob(data); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+      const blob = new Blob([u], { type: f.type || 'application/octet-stream' });
+      if (/^image\//.test(f.type)) { showImage(blob, f.name); return; }
+      if (downloads) await downloads.save({ filename: f.name, data: blob }); else { exMsg = 'Downloads aren’t available in this view.'; renderExRecords(); }
+    } catch (e) { if (!(e && e.code === 'declined')) { exMsg = 'Couldn’t open ' + f.name + '.'; renderExRecords(); } }
+  }
+  function showImage(blob, name) {
+    const url = URL.createObjectURL(blob);
+    const ov = el('div', 'ex-overlay'); ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', name);
+    const img = el('img'); img.src = url; img.alt = name;
+    const close = el('button', 'btn', 'Close'); close.type = 'button';
+    const done = () => { URL.revokeObjectURL(url); ov.remove(); };
+    close.addEventListener('click', done); ov.addEventListener('click', (e) => { if (e.target === ov) done(); });
+    const bar = el('div', 'row-actions'); bar.append(el('b', '', name), close);
+    if (downloads) { const dl = el('button', 'btn', 'Download'); dl.type = 'button'; dl.addEventListener('click', () => downloads.save({ filename: name, data: blob }).catch(() => {})); bar.append(dl); }
+    const inner = el('div', 'ex-overlay-in'); inner.append(bar, img); ov.append(inner); document.body.append(ov); close.focus();
+  }
+
+  /* ---------- reading documents ---------- */
+  const EX_HEADERS = { date: /(invoice )?date|inv\.? date|period/, supplier: /supplier|vendor|company|provider|from/, invoiceNo: /inv(oice)?\.? ?(no|num|number|#)|invoice$|ref(erence)?|doc(ument)? ?no/, equipment: /equipment|asset|unit|machine|forklift|truck|serial|fleet|model|mhe/, description: /description|details|work|job|item|particulars|notes/, category: /category|type|class|expense type/, exGst: /ex\.? ?gst|excl|ex gst|subtotal|net|amount ex|before gst|cost ex/, gst: /^gst$|^tax$|gst amount|gst \(|tax amount/, incGst: /inc\.? ?gst|incl|total|gross|amount inc|amount$|cost$|value/ };
+  // A table with dated rows and amounts is read as an invoice register; rows naming totals are kept as summary figures.
+  function parseExpenseTable(rows) {
+    const txt = (c) => (c instanceof Date ? isoOf(c) : c == null ? '' : String(c).trim());
+    let best = null;
+    for (let i = 0; i < Math.min(rows.length, 40); i++) {
+      const low = rows[i].map((c) => txt(c).toLowerCase());
+      const col = {};
+      for (const [k, re] of Object.entries(EX_HEADERS)) { const idx = low.findIndex((c, j) => c && re.test(c) && !Object.values(col).includes(j)); if (idx >= 0) col[k] = idx; }
+      if (col.gst != null && col.incGst === col.gst) delete col.incGst;
+      const score = ['date', 'supplier', 'invoiceNo', 'exGst', 'incGst', 'equipment', 'description'].filter((k) => col[k] != null).length;
+      if (col.date != null && (col.exGst != null || col.incGst != null) && score >= 3 && (!best || score > best.score)) best = { i, col, score };
+    }
+    if (!best) return null;
+    const { i, col } = best; const recs = [], summary = [];
+    for (const r of rows.slice(i + 1)) {
+      const g = (k) => (col[k] != null ? r[col[k]] : null);
+      const label = r.map(txt).filter(Boolean).join(' ');
+      if (!label) continue;
+      const date = toIso(g('date'));
+      if (!date) {
+        if (/total|subtotal|sum/i.test(label)) { const amt = num(g('incGst')) ?? num(g('exGst')); if (amt != null) summary.push({ label, category: normCategory(label) || (/^(grand |overall )?total\b/i.test(label.trim()) ? 'total' : null), amount: amt, gst_basis: g('incGst') != null ? 'inc' : 'ex' }); }
+        continue;
+      }
+      const desc = txt(g('description'));
+      const status = /quote|proposal|quotation|estimate|recommend/i.test(label) ? (/proposal|recommend/i.test(label) ? 'proposal' : 'quote') : 'actual';
+      const catTxt = txt(g('category'));
+      let category = normCategory(catTxt); let inferred = false;
+      if (!category) { category = guessCategory(desc + ' ' + catTxt); inferred = !!category; }
+      recs.push({ status, invoiceDate: date, supplier: txt(g('supplier')) || null, invoiceNo: txt(g('invoiceNo')) || null, equipment: txt(g('equipment')) || null, description: desc || null, category, categoryInferred: inferred,
+        exGst: num(g('exGst')), gst: num(g('gst')), incGst: num(g('incGst')), unclear: [] });
+    }
+    return recs.length ? { records: recs, summary } : null;
+  }
+  async function exReadFile(file) {
+    const name = file.name.toLowerCase();
+    if (/\.(png|jpe?g|webp|gif|heic)$/.test(name) || /^image\//.test(file.type)) return { images: [file], text: '' };
+    if (/\.(xlsx|xls|xlsm|csv)$/.test(name)) {
+      if (/\.csv$/.test(name)) { const text = await file.text(); return { tables: [parseCsv(text)], text }; }
+      if (!window.XLSX) throw new Error('The Excel reader didn’t load. Reload the page and try again.');
+      const wb = window.XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
+      return { tables: wb.SheetNames.map((s) => window.XLSX.utils.sheet_to_json(wb.Sheets[s], { header: 1, raw: true, defval: '' })), text: wb.SheetNames.map((s) => '## Sheet ' + s + '\n' + window.XLSX.utils.sheet_to_csv(wb.Sheets[s])).join('\n\n') };
+    }
+    if (/\.docx$/.test(name)) {
+      if (!window.mammoth) throw new Error('The Word reader didn’t load. Reload the page and try again.');
+      const buf = await file.arrayBuffer();
+      const html = (await window.mammoth.convertToHtml({ arrayBuffer: buf })).value;
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const tables = [...doc.querySelectorAll('table')].map((t) => [...t.rows].map((tr) => [...tr.cells].map((c) => c.textContent.trim())));
+      // Text with tables kept as rows, so the register stays readable.
+      for (const t of doc.querySelectorAll('table')) { const pre = doc.createElement('pre'); pre.textContent = '\n[TABLE]\n' + [...t.rows].map((tr) => [...tr.cells].map((c) => c.textContent.trim().replace(/\s+/g, ' ')).join(' | ')).join('\n') + '\n[END TABLE]\n'; t.replaceWith(pre); }
+      return { tables, text: doc.body.innerText || doc.body.textContent };
+    }
+    if (/\.doc$/.test(name)) throw new Error('Old .doc files can’t be read. Save it as .docx or PDF and upload that.');
+    if (/\.pdf$/.test(name) || file.type === 'application/pdf') {
+      const lib = window.pdfjsLib; if (!lib) throw new Error('The PDF reader didn’t load. Reload the page and try again.');
+      const pdf = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+      let text = ''; const scanned = [];
+      for (let p = 1; p <= Math.min(pdf.numPages, 40); p++) {
+        const page = await pdf.getPage(p); const tc = await page.getTextContent();
+        let line = '', lastY = null, pageText = '';
+        for (const it of tc.items) { const yv = it.transform ? Math.round(it.transform[5]) : null; if (lastY != null && yv != null && Math.abs(yv - lastY) > 2) { pageText += line.trim() + '\n'; line = ''; } line += it.str + (it.hasEOL ? '\n' : ' '); lastY = yv; }
+        pageText += line.trim();
+        if (pageText.replace(/\s/g, '').length < 40) scanned.push(p);
+        text += '\n## Page ' + p + '\n' + pageText;
+      }
+      const images = [];
+      for (const p of scanned.slice(0, 12)) {
+        const page = await pdf.getPage(p); const vp0 = page.getViewport({ scale: 1 }); const scale = Math.min(2.5, 1700 / vp0.width); const vp = page.getViewport({ scale });
+        const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+        await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+        images.push(await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.85)));
+      }
+      return { text, images, pages: pdf.numPages, scannedPages: scanned };
+    }
+    throw new Error('This file type isn’t supported. Use Word (.docx), Excel, PDF or an image.');
+  }
+
+  const EX_PROMPT = 'You extract equipment expense records (forklifts, material handling equipment) from a document for an Australian warehouse. Amounts are AUD.\n' +
+    'Return ONLY JSON: {"document":{"type":"invoice|consolidated_report|maintenance_report|quote|other","state":"VIC|NSW|QLD|WA|null","title":""},' +
+    '"records":[{"kind":"actual|quote|proposal","invoice_date":"YYYY-MM-DD|null","supplier":null,"invoice_number":null,"equipment":null,"description":"","category":"maintenance|repairs|rental|battery|other|null","ex_gst":null,"gst":null,"inc_gst":null,"state":null,"source_ref":"page, table or row it came from","unclear":["field: why"]}],' +
+    '"summary_totals":[{"label":"","category":"maintenance|repairs|rental|battery|other|total|null","period":"","amount":0,"gst_basis":"inc|ex|unknown"}],' +
+    '"estimates":[{"label":"","amount":0,"basis":""}]}\n' +
+    'Rules:\n' +
+    '1. records = individual dated expense entries: single invoices, or each line of a detailed register/table of invoices. When a report has both a summary and a detailed register, records come ONLY from the detailed register; put every summary or overview figure in summary_totals instead (including battery cost totals and category totals).\n' +
+    '2. Never guess. If a value is not written in the document, use null and add an entry to unclear. Do not calculate GST or totals that are not shown. Copy amounts exactly as written.\n' +
+    '3. Dates are Australian day/month/year (05/04/2025 is 5 April 2025). Keep each invoice\'s own date and year exactly; do not move entries into another year.\n' +
+    '4. Quotes, proposals, recommendations and planned work that is not invoiced are kind quote or proposal, never actual, even if a price is given.\n' +
+    '5. Rental: one record per rental invoice with that invoice\'s own date; do not combine months or spread one invoice over months.\n' +
+    '6. Annual estimates, projections, forecasts or budgets go in estimates only, never in records.\n' +
+    '7. category: maintenance (servicing, inspections), repairs (breakdowns, parts, fixes), rental (hire, lease), battery (battery replacement or purchase), else other.\n' +
+    '8. state: the Australian state of the site if written, else null.\n';
+  async function exExtractAI(read, fileName, onStep) {
+    const lim = await sample.limits().catch(() => null);
+    const maxText = Math.max(20000, Math.min(90000, ((lim && lim.maxPromptBytes) || 120000) - 12000));
+    const outs = [];
+    const text = String(read.text || '');
+    const hasText = text.replace(/\s/g, '').length > 80;
+    if (hasText) {
+      const parts = []; for (let p = 0; p < text.length; p += maxText) parts.push(text.slice(p, p + maxText));
+      for (let i = 0; i < parts.length; i++) { onStep && onStep('Claude is reading ' + (parts.length > 1 ? 'part ' + (i + 1) + ' of ' + parts.length : 'the document') + '…'); outs.push(await sample.json(EX_PROMPT + '\nDocument "' + fileName + '"' + (parts.length > 1 ? ' (part ' + (i + 1) + ' of ' + parts.length + '; only return what is in this part)' : '') + ':\n' + parts[i], { modelTier: 'complex' })); }
+    }
+    if ((read.images || []).length) {
+      if (!lim || !lim.images) throw { code: 'no_images' };
+      const imgs = []; for (const im of read.images) imgs.push(await prepareImage(im, lim.images));
+      const per = Math.max(1, lim.images.maxCount || 1);
+      for (let i = 0; i < imgs.length; i += per) { onStep && onStep('Claude is reading ' + (read.scannedPages ? 'scanned page' : 'image') + (imgs.length > 1 ? 's ' + (i + 1) + '–' + Math.min(imgs.length, i + per) + ' of ' + imgs.length : '') + '…'); outs.push(await sample.json(EX_PROMPT + '\nRead the attached ' + (read.scannedPages ? 'scanned pages' : 'image') + ' of "' + fileName + '" (OCR the text first).', { images: imgs.slice(i, i + per), modelTier: 'complex' })); }
+    }
+    const merged = { document: {}, records: [], summary: [], estimates: [] };
+    for (const o of outs) {
+      if (!o || typeof o !== 'object') continue;
+      merged.document = { ...o.document, ...merged.document };
+      for (const r of o.records || []) {
+        const st = r.kind === 'quote' || r.kind === 'proposal' ? r.kind : 'actual';
+        const cat = normCategory(r.category);
+        merged.records.push({ status: st, invoiceDate: toIso(r.invoice_date), supplier: r.supplier || null, invoiceNo: r.invoice_number != null ? String(r.invoice_number) : null, equipment: r.equipment || null, description: r.description || null,
+          category: cat, exGst: num(r.ex_gst), gst: num(r.gst), incGst: num(r.inc_gst), state: whFromStore(r.state), sourceRef: r.source_ref || null, unclear: (r.unclear || []).map(String).slice(0, 6) });
+      }
+      merged.summary.push(...(o.summary_totals || []).filter((s) => s && num(s.amount) != null).map((s) => ({ ...s, amount: num(s.amount) })));
+      merged.estimates.push(...(o.estimates || []).filter((s) => s && s.label));
+    }
+    return merged;
+  }
+  // Compare summary figures with the detailed entries from the same file.
+  function exConflicts(records, summary) {
+    const out = [];
+    const act = records.filter((r) => r.status === 'actual');
+    for (const s of summary) {
+      const cat = s.category === 'total' ? null : normCategory(s.category) || normCategory(s.label);
+      if (s.category !== 'total' && !cat) continue;
+      const recs = cat ? act.filter((r) => r.category === cat) : act;
+      const ex = recs.reduce((a, r) => a + (num(r.exGst) || 0), 0), inc = recs.reduce((a, r) => a + (num(r.incGst) || 0), 0);
+      const basis = s.gst_basis === 'ex' ? [ex] : s.gst_basis === 'inc' ? [inc] : [ex, inc];
+      if (!basis.some((v) => Math.abs(v - s.amount) <= 1)) out.push({ text: 'Summary “' + s.label + '” says ' + aud(s.amount) + (s.period ? ' (' + s.period + ')' : '') + ', but the detailed entries' + (cat ? ' for ' + EX_CAT_LABEL[cat].toLowerCase() : '') + ' add up to ' + aud(s.gst_basis === 'ex' ? ex : inc) + (s.gst_basis === 'unknown' ? ' inc GST (' + aud(ex) + ' ex GST)' : s.gst_basis === 'ex' ? ' ex GST' : ' inc GST') + '. Totals use the detailed entries.', resolved: false });
+    }
+    return out;
+  }
+
+  /* ---------- upload and review ---------- */
+  const exBatches = [];
+  function buildExUploader() {
+    const mount = $('#ex-up');
+    const intro = el('p', 'muted', 'Upload invoices, maintenance reports, repair and rental invoices, or consolidated expenditure reports (Word, Excel, PDF or screenshots). Each record is shown for review: fix anything flagged, untick what shouldn’t be saved, then save. Nothing is saved until you press Save.');
+    const grid = el('div', 'grid');
+    const f = el('div', 'f'); const l = el('label', '', 'State (when the document doesn’t say)'); const s = el('select'); s.id = 'ex-up-state'; l.htmlFor = s.id; s.append(new Option('—', '')); for (const x of EX_STATES) s.append(new Option(x, x)); s.value = exState !== 'All' ? exState : dWh; f.append(l, s); grid.append(f);
+    const drop = el('label', 'drop'); drop.htmlFor = 'ex-file';
+    const file = el('input'); file.type = 'file'; file.multiple = true; file.id = 'ex-file'; file.accept = '.docx,.xlsx,.xls,.xlsm,.csv,.pdf,.png,.jpg,.jpeg,.webp';
+    const s1 = el('span'); s1.append(el('b', '', 'Choose files'), ' or drop them here');
+    drop.append(file, s1, el('span', '', 'Word .docx · Excel · PDF (text or scanned) · screenshots'));
+    const list = el('div', 'up-list'); list.id = 'ex-batches';
+    mount.append(intro, grid, drop, list);
+    const go = (files) => { for (const fl of files) exStartBatch(fl, s.value); };
+    file.addEventListener('change', () => { go([...file.files]); file.value = ''; });
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+    drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer?.files?.length) go([...e.dataTransfer.files]); });
+  }
+  async function exStartBatch(file, defState) {
+    const b = { id: ++itemSeq, file, name: file.name, status: 'Reading…', records: [], summary: [], estimates: [], conflicts: [], defState, error: '' };
+    exBatches.unshift(b); renderExBatches();
+    try {
+      const read = await exReadFile(file); b.read = read;
+      let res = null;
+      for (const t of read.tables || []) { res = parseExpenseTable(t); if (res) { b.method = 'table'; break; } }
+      if (!res || /\.(docx|pdf)$/i.test(file.name) || (read.images || []).length) {
+        if (sample) { const ai = await exExtractAI(read, file.name, (m) => { b.status = m; renderExBatches(); }); if (ai.records.length || !res) { res = { records: ai.records, summary: ai.summary }; b.estimates = ai.estimates; b.method = 'claude'; if (ai.document && whFromStore(ai.document.state)) b.defState = whFromStore(ai.document.state); b.docType = ai.document?.type; } }
+        else if (!res) throw new Error((read.images || []).length ? 'Reading images and scanned PDFs needs Claude, which isn’t available in this view.' : 'No invoice table was found, and Claude isn’t available in this view to read the text.');
+      }
+      if (!res || !res.records.length) { b.status = 'error'; b.error = 'No expense entries were found in this file.' + (b.estimates.length ? ' It has ' + b.estimates.length + ' estimate(s), which are not entered as actual expenses.' : ''); renderExBatches(); return; }
+      for (const r of res.records) { r.batch = b.id; r.state = r.state || b.defState || null; r.include = true; }
+      b.records = res.records; b.summary = res.summary || []; b.conflicts = exConflicts(b.records, b.summary);
+      exRefreshFlags(b);
+      b.status = 'review';
+    } catch (e) {
+      b.status = 'error';
+      const c = e && e.code;
+      b.error = c === 'no_images' ? 'This view can’t send pictures to Claude. Upload the Word, Excel or text PDF version instead.' : c === 'not_granted' ? 'Reading with Claude wasn’t allowed. Allow it in the page’s permissions and try again.' : c === 'rate_limited' ? 'Too many requests right now. Try again in a minute.' : (e && e.message) || 'Couldn’t read this file' + (c ? ' (' + c + ')' : '') + '.';
+    }
+    renderExBatches();
+  }
+  function exRefreshFlags(b) {
+    const pool = [...expenses, ...exBatches.flatMap((x) => x.records.filter((r) => r.include))];
+    for (const r of b.records) {
+      r.flags = exFlags(r, pool.filter((o) => o !== r));
+      if (r.autoChecked !== true) { r.autoChecked = true; if (r.flags.some((f) => /^Possible duplicate/.test(f))) r.include = false; }
+    }
+  }
+  function renderExBatches() {
+    const box = $('#ex-batches'); if (!box) return;
+    box.replaceChildren(...exBatches.map((b) => {
+      const card = el('div', 'up-item');
+      const head = el('div', 'up-head'); head.append(el('span', 'name', b.name));
+      const st = b.status === 'review' ? (b.method === 'claude' ? 'Read by Claude · check before saving' : 'Read from table · check before saving') : b.status === 'saved' ? 'Saved' : b.status === 'error' ? 'Couldn’t read' : b.status;
+      head.append(el('span', 'up-kind' + (b.status === 'error' ? ' bad' : b.status === 'saved' ? ' done' : ''), st));
+      if (b.status !== 'review' || b.status === 'saved') { const x = el('button', 'x', '✕'); x.type = 'button'; x.setAttribute('aria-label', 'Dismiss ' + b.name); x.addEventListener('click', () => { exBatches.splice(exBatches.indexOf(b), 1); renderExBatches(); }); if (b.status !== 'review') head.append(x); }
+      card.append(head);
+      if (b.status === 'error') { card.append(el('div', 'up-prev', b.error)); return card; }
+      if (b.status === 'saved') { card.append(el('div', 'up-prev', b.savedNote)); return card; }
+      if (b.status !== 'review') return card;
+      const notes = el('div', 'up-prev');
+      const act = b.records.filter((r) => r.status === 'actual'), qs = b.records.filter((r) => r.status !== 'actual');
+      notes.append(el('span', '', act.length + ' actual expense' + (act.length === 1 ? '' : 's') + (qs.length ? ', ' + qs.length + ' quote/proposal' + (qs.length > 1 ? 's' : '') + ' (kept separate)' : '') + '. Months: ' + ([...new Set(act.filter((r) => r.invoiceDate).map((r) => ymLabel(r.invoiceDate.slice(0, 7))))].join(', ') || 'none') + '.'));
+      for (const c of b.conflicts) notes.append(el('span', 'c-bad', 'Check: ' + c.text));
+      for (const e of b.estimates) notes.append(el('span', '', 'Estimate found, not entered: ' + e.label + ' ' + aud(num(e.amount)) + (e.basis ? ' (' + e.basis + ')' : '')));
+      card.append(notes);
+      const wrap = el('div', 'tbl-wrap'); const t = el('table', 't ex-rv-tbl');
+      const hr = el('tr'); for (const h of ['Save', 'Type', 'Date', 'State', 'Supplier', 'Invoice', 'Equipment', 'Description', 'Category', 'Ex GST', 'GST', 'Inc GST', 'Flags']) hr.append(el('th', '', h));
+      const thead = el('thead'); thead.append(hr); const tb = el('tbody');
+      b.records.forEach((r, i) => {
+        const tr = el('tr', r.include ? '' : 'off'); const idp = 'exr-' + b.id + '-' + i;
+        const cell = (node) => { const td = el('td'); td.append(node); tr.append(td); return td; };
+        const ck = el('input'); ck.type = 'checkbox'; ck.checked = r.include; ck.id = idp + '-inc'; ck.setAttribute('aria-label', 'Save row ' + (i + 1)); ck.addEventListener('change', () => { r.include = ck.checked; exRefreshFlags(b); renderExBatches(); }); cell(ck);
+        const upd = () => { r.flags = exFlags(r, [...expenses, ...exBatches.flatMap((x) => x.records.filter((o) => o.include && o !== r))]); paintFlags(); };
+        const selIn = (k, opts) => { const s = el('select'); s.id = idp + '-' + k; s.setAttribute('aria-label', k); for (const [v, l] of opts) s.append(new Option(l, v)); s.value = r[k] ?? ''; s.addEventListener('change', () => { r[k] = s.value || null; if (k === 'category') r.categoryInferred = false; upd(); }); return s; };
+        const txtIn = (k, type, w) => { const x = el('input'); x.type = type || 'text'; x.id = idp + '-' + k; x.setAttribute('aria-label', k); x.value = r[k] ?? ''; if (w) x.style.width = w; if (type === 'number') x.step = '0.01'; x.addEventListener('input', () => { r[k] = x.value === '' ? null : x.value; upd(); }); return x; };
+        cell(selIn('status', [['actual', 'Actual'], ['quote', 'Quote'], ['proposal', 'Proposal']]));
+        cell(txtIn('invoiceDate', 'date'));
+        cell(selIn('state', [['', '—'], ...EX_STATES.map((s) => [s, s])]));
+        cell(txtIn('supplier', 'text', '9rem')); cell(txtIn('invoiceNo', 'text', '7rem')); cell(txtIn('equipment', 'text', '8rem')); cell(txtIn('description', 'text', '14rem'));
+        cell(selIn('category', [['', '—'], ...EX_CATS]));
+        cell(txtIn('exGst', 'number', '6.5rem')); cell(txtIn('gst', 'number', '5.5rem')); cell(txtIn('incGst', 'number', '6.5rem'));
+        const ftd = el('td', 'ex-flags'); tr.append(ftd);
+        const paintFlags = () => { ftd.replaceChildren(...(r.flags.length ? r.flags.map((x) => el('span', 'pill miss', x)) : [el('span', 'pill hit', 'OK')])); const gh = gstHelpers(r, () => { upd(); renderExBatches(); }); if (gh) ftd.append(gh); if (r.sourceRef) ftd.append(el('span', 'muted', 'From ' + r.sourceRef)); };
+        paintFlags(); tb.append(tr);
+      });
+      t.append(thead, tb); wrap.append(t); card.append(wrap);
+      const ra = el('div', 'row-actions');
+      const n = b.records.filter((r) => r.include).length;
+      const save = el('button', 'btn primary', 'Save ' + n + ' record' + (n === 1 ? '' : 's')); save.type = 'button'; save.disabled = !db || !n || b.saving;
+      save.addEventListener('click', () => exSaveBatch(b));
+      const drop = el('button', 'btn', 'Discard'); drop.type = 'button'; drop.addEventListener('click', () => { exBatches.splice(exBatches.indexOf(b), 1); renderExBatches(); });
+      ra.append(save, drop, el('span', 'state', b.saveMsg || (n < b.records.length ? (b.records.length - n) + ' unticked rows will not be saved.' : '')));
+      card.append(ra);
+      return card;
+    }));
+  }
+  async function exSaveBatch(b) {
+    if (!db) return;
+    b.saving = true; b.saveMsg = 'Saving…'; renderExBatches();
+    try {
+      const uid = user ? await user.id().catch(() => null) : null;
+      const keep = b.records.filter((r) => r.include);
+      const months = [...new Set(keep.filter((r) => r.invoiceDate).map((r) => r.invoiceDate.slice(0, 7)))];
+      const fid = await storeSource(b.file, { state: b.defState || null, months, records: keep.length, conflicts: b.conflicts, estimates: b.estimates.map((e) => ({ label: String(e.label), amount: num(e.amount), basis: e.basis ? String(e.basis) : '' })), method: b.method || '', docType: b.docType || '', ...(uid ? { savedBy: uid } : {}) });
+      for (const r of keep) {
+        const body = exClean({ ...r, sourceId: fid, sourceName: b.name });
+        body.flags = exFlags(r, expenses); body.createdAt = Date.now(); if (uid) body.savedBy = uid;
+        await db.collection('expenses').add(body);
+      }
+      b.status = 'saved'; b.savedNote = 'Saved ' + keep.length + ' record' + (keep.length === 1 ? '' : 's') + ' with the source file linked.' + (b.conflicts.length ? ' ' + b.conflicts.length + ' summary conflict(s) are listed under Needs review.' : '');
+      const firstDate = keep.map((r) => r.invoiceDate).filter(Boolean).sort()[0];
+      if (firstDate) { const y = Number(firstDate.slice(0, 4)), m = Number(firstDate.slice(5, 7)); exYear = exYMode === 'fy' ? (m >= 7 ? y : y - 1) : y; exMonth = 'all'; exFrom = exTo = ''; }
+    } catch (e) { b.saveMsg = 'Couldn’t save. Check you can edit this page.'; }
+    b.saving = false; renderExBatches(); render();
+  }
+
+  /* ---------- Excel export ---------- */
+  $('#ex-export').addEventListener('click', async () => {
+    if (!window.XLSX || !downloads) { exMsg = !downloads ? 'Downloads aren’t available in this view.' : 'The Excel writer didn’t load.'; renderExRecords(); return; }
+    const sc = exScope();
+    const recRow = (r) => ({ 'Invoice date': r.invoiceDate || '', Month: r.month ? ymLabel(r.month) : '', State: r.state || '', Supplier: r.supplier || '', 'Invoice number': r.invoiceNo || '', 'Equipment': r.equipment || '', Description: r.description || '', Category: EX_CAT_LABEL[r.category] || '', 'Ex GST (AUD)': num(r.exGst), 'GST (AUD)': num(r.gst), 'Inc GST (AUD)': num(r.incGst), Type: r.status === 'actual' ? 'Actual' : r.status === 'proposal' ? 'Proposal' : 'Quote', 'Needs review': (r.flags || []).length && !r.reviewed ? r.flags.join('; ') : '', 'Source file': r.sourceName || '' });
+    const act = expenses.filter((r) => r.status === 'actual' && stateOk(r) && (!r.invoiceDate || inScope(r, sc))).sort((a, b) => String(a.invoiceDate).localeCompare(String(b.invoiceDate)));
+    const qs = expenses.filter((r) => r.status !== 'actual' && stateOk(r));
+    const actualAll = expenses.filter((r) => r.status === 'actual' && stateOk(r));
+    const months = yearMonths(exYear).map((m) => { const recs = actualAll.filter((r) => r.month === m); const s = sumBy(recs); const st = monthStatus(m, actualAll); return { Month: ymLabel(m), 'Maintenance and repairs': st === 'data' ? money2(s.mr) : null, Rental: st === 'data' ? money2(s.rental) : null, 'Battery replacement': st === 'data' ? money2(s.battery) : null, Other: st === 'data' ? money2(s.other) : null, Total: st === 'data' ? money2(s.total) : st === 'zero' ? 0 : null, Data: st === 'data' ? recs.length + ' invoices' : st === 'zero' ? 'Confirmed no expenses' : 'No data uploaded' }; });
+    const wb = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.json_to_sheet(act.map(recRow)), 'Actual expenses');
+    window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.json_to_sheet(months), 'Monthly ' + (exGst === 'inc' ? 'inc' : 'ex') + ' GST');
+    window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.json_to_sheet(qs.map(recRow).length ? qs.map(recRow) : [{ Note: 'No quotes or proposals' }]), 'Quotes and proposals');
+    const data = window.XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    try { await downloads.save({ filename: 'equipment-expenses-' + (exState === 'All' ? 'all-states' : exState.toLowerCase()) + '-' + sc.from + '-to-' + sc.to + '.xlsx', data: new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }) }); }
+    catch (e) { if (!(e && e.code === 'declined')) { exMsg = 'Couldn’t prepare the Excel file.'; renderExRecords(); } }
+  });
+
+  /* ---------- dashboard link: expenses in the dashboard period, counted once ---------- */
+  function expensesForDash() {
+    const recs = expenses.filter((r) => r.status === 'actual' && r.state === dWh && r.invoiceDate && r.invoiceDate >= pFrom && r.invoiceDate <= pTo);
+    return { recs, s: sumBy(recs) };
+  }
+  buildExUploader();
+
   /* ===================== render & boot ===================== */
   function render() {
     hideTip();
     $('#view-dash').hidden = view !== 'dash';
     $('#view-entry').hidden = view !== 'entry';
-    if (view === 'dash') { renderDash(); renderPicking(); renderTargets(); renderUploadLog(); } else renderEntry();
+    if (view === 'dash') { renderDash(); renderPicking(); renderTargets(); renderUploadLog(); renderExpenses(); } else renderEntry();
   }
   for (const a of document.querySelectorAll('.nav a')) a.addEventListener('click', (e) => { const t = document.getElementById(a.getAttribute('href').slice(1)); if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth' }); } });
   let resizeT; window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (view === 'dash') renderDash(); }, 150); });
@@ -1713,6 +2503,9 @@ table.pkin input[type=number] { text-align: right; }
       render();
     }, () => { loaded = true; render(); });
     db.collection('picking').limit(500).onSnapshot((snap) => { reports = new Map(snap.docs.filter((x) => x.exists).map((x) => [x.id, x.data()])); render(); }, () => {});
+    db.collection('expenses').limit(5000).onSnapshot((snap) => { expenses = snap.docs.filter((x) => x.exists).map((x) => ({ ...x.data(), id: x.id })); if (view === 'dash') render(); }, () => {});
+    db.collection('expense_files').limit(2000).onSnapshot((snap) => { expFiles = new Map(snap.docs.filter((x) => x.exists).map((x) => [x.id, { ...x.data(), id: x.id }])); if (view === 'dash') renderExpenses(); }, () => {});
+    db.collection('expense_months').limit(2000).onSnapshot((snap) => { expMonths = new Map(snap.docs.filter((x) => x.exists).map((x) => [x.id, x.data()])); if (view === 'dash') renderExpenses(); }, () => {});
     db.collection('uploads').orderBy('savedAt', 'desc').limit(200).onSnapshot((snap) => { uploadsLog = snap.docs.filter((x) => x.exists).map((x) => ({ ...x.data(), id: x.id })); if (view === 'dash') renderUploadLogs(); }, () => {});
     window.claude.use('sample').then((s) => { sample = s; for (const ui of uploaders) ui.renderList(); });
     for (const ui of uploaders) ui.renderList();
