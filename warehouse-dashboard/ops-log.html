@@ -216,6 +216,11 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
 .ex-overlay { position: fixed; inset: 0; background: rgb(0 0 0 / .6); z-index: 50; display: grid; place-items: center; padding: 16px; }
 .ex-overlay-in { background: var(--panel); border-radius: var(--r); padding: 12px; max-width: min(1100px, 100%); max-height: 100%; overflow: auto; display: grid; gap: 10px; }
 .ex-overlay-in img { max-width: 100%; height: auto; display: block; }
+.state-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.state-lbl { color: var(--muted); font-size: .85rem; margin-right: 4px; }
+.state-tab { font: inherit; font-weight: 600; font-size: 1.05rem; letter-spacing: .03em; padding: 6px 18px; border-radius: var(--r); border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
+.state-tab:hover { border-color: var(--muted); }
+.state-tab[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 .kpis { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); }
 </style>
 
@@ -225,10 +230,10 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
   <!-- ===================== DASHBOARD VIEW ===================== -->
   <div class="view" id="view-dash">
     <header class="head">
+      <div class="state-tabs" id="d-wh" role="group" aria-label="State"></div>
       <div class="title-row">
-        <h1>Warehouse daily ops</h1>
+        <h1 id="d-title">Warehouse daily ops</h1>
         <div class="controls">
-          <div class="seg" id="d-wh" role="group" aria-label="Warehouse"></div>
           <button class="btn primary" type="button" id="d-edit">Enter or edit a day</button>
         </div>
       </div>
@@ -698,7 +703,8 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
   const PRESETS = { week: 'This week', lastweek: 'Last week', month: 'This month', lastmonth: 'Last month' };
 
   function renderDash() {
-    segInto($('#d-wh'), WAREHOUSES, () => dWh, (w) => { dWh = w; remember(); });
+    $('#d-wh').replaceChildren(el('span', 'state-lbl', 'State'), ...WAREHOUSES.map((w) => { const b = el('button', 'state-tab', w); b.type = 'button'; b.setAttribute('aria-pressed', String(w === dWh)); b.addEventListener('click', () => { if (dWh !== w) { dWh = w; remember(); render(); window.scrollTo({ top: 0 }); } }); return b; }));
+    $('#d-title').textContent = dWh + ' warehouse · daily ops';
     segInto($('#p-presets'), Object.keys(PRESETS), () => pPreset, (p) => { setPreset(p); periodTouched = true; }, (p) => PRESETS[p]);
     if (document.activeElement !== pFromIn) pFromIn.value = pFrom;
     if (document.activeElement !== pToIn) pToIn.value = pTo;
@@ -927,7 +933,8 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
   function renderPicking() {
     const T = targets.pick_rate, MIN = targets.pick_min_boxes;
     const people = [], sources = [];
-    for (const wh of WAREHOUSES) {
+    pkWh = dWh;
+    for (const wh of [dWh]) {
       const pf = pickingFor(wh);
       if (pf.source) sources.push(wh + ': ' + pf.source);
       for (const p of pf.people) {
@@ -939,19 +946,18 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
     $('#pk-sub').textContent = periodLabel()[0].toUpperCase() + periodLabel().slice(1) + '. ' + (sources.length ? 'From ' + sources.join(' · ') + '. ' : 'No picking data in this period. ') +
       'Pick rate is boxes per picking hour; a warehouse’s rate is total boxes ÷ total hours. Target ' + T + ' boxes/hr; pickers under ' + MIN + ' boxes aren’t scored. MMS and Abadan are left out.';
     const tiles = $('#pk-tiles'), tbody = $('#pk-table tbody');
-    tiles.replaceChildren(...['All', ...WAREHOUSES].map((w) => {
-      const ps = people.filter((p) => w === 'All' || p.warehouse === w);
+    {
+      const ps = people;
       const boxes = ps.reduce((s, p) => s + p.boxes, 0), hours = ps.reduce((s, p) => s + p.boxes / p.pickrate, 0);
       const rate = hours ? r2(boxes / hours) : null;
       const scored = ps.filter((p) => p.boxes >= MIN), hitN = scored.filter((p) => p.pickrate >= T).length;
-      const t = tile((w === 'All' ? 'All warehouses' : w + ' warehouse') + ' · boxes/hr', rate == null ? '—' : fmt(rate), '',
-        ps.length ? hitN + ' of ' + scored.length + ' pickers on target · ' + fmt(boxes) + ' boxes' : 'No picking data', rate == null ? null : pill(rate >= T ? 'Hit' : 'Missed', rate >= T ? 'hit' : 'miss'));
-      t.classList.add('clickable'); t.tabIndex = 0; t.setAttribute('role', 'button'); t.setAttribute('aria-pressed', String(pkWh === w));
-      const go = () => { pkWh = w; renderPicking(); };
-      t.addEventListener('click', go); t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
-      return t;
-    }));
-    const rows = people.filter((p) => pkWh === 'All' || p.warehouse === pkWh);
+      tiles.replaceChildren(
+        tile(dWh + ' pick rate · boxes/hr', rate == null ? '—' : fmt(rate), '', ps.length ? 'Target ' + T : 'No picking data in this period', rate == null ? null : pill(rate >= T ? 'Hit' : 'Missed', rate >= T ? 'hit' : 'miss')),
+        tile('Pickers on target', ps.length ? String(hitN) : '—', ps.length ? '/ ' + scored.length : '', ps.length ? (ps.length - scored.length) + ' under ' + MIN + ' boxes not scored' : ''),
+        tile('Boxes picked', ps.length ? fmt(boxes) : '—', '', ps.length ? ps.length + ' pickers' : ''),
+        tile('Picking hours', ps.length ? fmt(r2(hours)) : '—', '', ps.length ? 'Boxes ÷ pick rate' : ''));
+    }
+    const rows = people.slice();
     const order = { Hit: 0, Missed: 1, 'Too few boxes': 2 };
     rows.sort((a, b) => { const av = pkSort === 'result' ? order[a.result] : a[pkSort], bv = pkSort === 'result' ? order[b.result] : b[pkSort]; return (av < bv ? -1 : av > bv ? 1 : 0) * pkDir; });
     for (const th of document.querySelectorAll('#pk-table th')) { const k = th.querySelector('.th-btn').dataset.sort; if (k === pkSort) th.setAttribute('aria-sort', pkDir > 0 ? 'ascending' : 'descending'); else th.removeAttribute('aria-sort'); }
@@ -991,7 +997,7 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
       const scored = ps.filter((p) => n(p.boxes) >= MIN);
       return ps.length ? { rate: r2(boxes / hours), hit: scored.filter((p) => n(p.pickrate) >= T).length, scored: scored.length, boxes } : null;
     });
-    const rowsData = [['All', cellsFor(WAREHOUSES)], ...WAREHOUSES.map((w) => [w, cellsFor([w])])];
+    const rowsData = [[dWh, cellsFor([dWh])]];
     if (!rowsData.some(([, c]) => c.some(Boolean))) { box.style.gridTemplateColumns = '1fr'; box.replaceChildren(el('div', 'empty', 'Upload the Task User Report each week (set Report from and to to the week) and each week’s pick rate shows here.')); return; }
     box.style.gridTemplateColumns = `6rem repeat(${weeks.length}, minmax(4.2rem, 1fr))`;
     const kids = [el('div', '')];
@@ -1568,6 +1574,7 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
     const from = mk('from', 'Report from', 'input', 'date'), to = mk('to', 'Report to', 'input', 'date'), whSel = mk('wh', 'Warehouse', 'select');
     for (const w of WAREHOUSES) whSel.append(new Option(w, w));
     from.value = todayIso(); to.value = todayIso(); whSel.value = dWh;
+    whSel.addEventListener('change', () => { ui.whTouched = true; });
     from.addEventListener('change', () => { if (from.value && (!to.value || to.value < from.value)) to.value = from.value; });
     const quick = el('div', 'row-actions'); quick.append(el('span', 'muted', 'Report covers:'));
     const seg = el('div', 'seg');
@@ -1703,7 +1710,7 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
     };
 
     ui.renderLog = () => {
-      const rows = uploadsLog.filter(opts.logFilter).slice(0, 12);
+      const rows = uploadsLog.filter(opts.logFilter).filter((u) => u.warehouse === dWh).slice(0, 12);
       const kids = rows.length ? [el('h3', '', 'Uploaded reports')] : [];
       for (const u of rows) {
         const d = el('div');
@@ -1799,7 +1806,7 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
   const ymLabel = (ym) => MONTHS[Number(ym.slice(5)) - 1] + ' ' + ym.slice(0, 4);
   let expenses = [], expFiles = new Map(), expMonths = new Map();
   let exState = 'All', exYear = null, exYMode = 'cal', exMonth = 'all', exFrom = '', exTo = '', exGst = 'inc', exSearch = '', exSort = 'date', exSortDir = -1;
-  let exEditing = null, exConfirmDel = null, exMsg = '';
+  let exEditing = null, exConfirmDel = null, exMsg = '', exAllStates = false, exUpTouched = false;
   try { const s = JSON.parse(localStorage.getItem('whops-ex') || 'null'); if (s) { exGst = s.gst === 'ex' ? 'ex' : 'inc'; exYMode = s.ymode === 'fy' ? 'fy' : 'cal'; } } catch (e) {}
   const exRemember = () => { try { localStorage.setItem('whops-ex', JSON.stringify({ gst: exGst, ymode: exYMode })); } catch (e) {} };
 
@@ -1901,6 +1908,7 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
   $('#ex-search').addEventListener('input', (e) => { exSearch = e.target.value; renderExRecords(); });
 
   function renderExpenses() {
+    exState = exAllStates ? 'All' : dWh;
     const years = [...new Set(expenses.filter((r) => r.invoiceDate).map((r) => { const y = Number(r.invoiceDate.slice(0, 4)), m = Number(r.invoiceDate.slice(5, 7)); return exYMode === 'fy' ? (m >= 7 ? y : y - 1) : y; }))];
     const now = dt(todayIso()), curY = exYMode === 'fy' ? (now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1) : now.getFullYear();
     if (!years.includes(curY)) years.push(curY);
@@ -1912,7 +1920,7 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
     exMonthSel.replaceChildren(new Option('All months', 'all'), ...ms.map((m) => new Option(ymLabel(m), m))); exMonthSel.value = exMonth;
     if (document.activeElement !== exFromIn) exFromIn.value = exFrom; if (document.activeElement !== exToIn) exToIn.value = exTo;
     $('#ex-clear-range').hidden = !(exFrom && exTo);
-    segInto($('#ex-state'), ['All', ...EX_STATES], () => exState, (w) => { exState = w; });
+    segInto($('#ex-state'), ['one', 'all'], () => (exAllStates ? 'all' : 'one'), (v) => { exAllStates = v === 'all'; }, (v) => (v === 'one' ? dWh + ' only' : 'All states together'));
     segInto($('#ex-ymode'), ['cal', 'fy'], () => exYMode, (m) => { exYMode = m; exYear = null; exMonth = 'all'; exRemember(); }, (m) => (m === 'cal' ? 'Calendar year' : 'Financial year'));
     segInto($('#ex-gst'), ['inc', 'ex'], () => exGst, (g) => { exGst = g; exRemember(); }, (g) => (g === 'inc' ? 'Inc GST' : 'Ex GST'));
 
@@ -2363,7 +2371,7 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
     const mount = $('#ex-up');
     const intro = el('p', 'muted', 'Upload invoices, maintenance reports, repair and rental invoices, or consolidated expenditure reports (Word, Excel, PDF or screenshots). Each record is shown for review: fix anything flagged, untick what shouldn’t be saved, then save. Nothing is saved until you press Save.');
     const grid = el('div', 'grid');
-    const f = el('div', 'f'); const l = el('label', '', 'State (when the document doesn’t say)'); const s = el('select'); s.id = 'ex-up-state'; l.htmlFor = s.id; s.append(new Option('—', '')); for (const x of EX_STATES) s.append(new Option(x, x)); s.value = exState !== 'All' ? exState : dWh; f.append(l, s); grid.append(f);
+    const f = el('div', 'f'); const l = el('label', '', 'State (when the document doesn’t say)'); const s = el('select'); s.id = 'ex-up-state'; l.htmlFor = s.id; s.append(new Option('—', '')); for (const x of EX_STATES) s.append(new Option(x, x)); s.value = dWh; s.addEventListener('change', () => { exUpTouched = true; }); f.append(l, s); grid.append(f);
     const drop = el('label', 'drop'); drop.htmlFor = 'ex-file';
     const file = el('input'); file.type = 'file'; file.multiple = true; file.id = 'ex-file'; file.accept = '.docx,.xlsx,.xls,.xlsm,.csv,.pdf,.png,.jpg,.jpeg,.webp';
     const s1 = el('span'); s1.append(el('b', '', 'Choose files'), ' or drop them here');
@@ -2514,7 +2522,11 @@ td.ex-flags { min-width: 14rem; white-space: normal; }
     hideTip();
     $('#view-dash').hidden = view !== 'dash';
     $('#view-entry').hidden = view !== 'entry';
-    if (view === 'dash') { renderDash(); renderPicking(); renderTargets(); renderUploadLog(); renderExpenses(); } else renderEntry();
+    if (view === 'dash') {
+      for (const ui of uploaders) if (!ui.whTouched && ui.whSel) ui.whSel.value = dWh;
+      const exs = $('#ex-up-state'); if (exs && !exUpTouched) exs.value = dWh;
+      renderDash(); renderPicking(); renderTargets(); renderUploadLog(); renderExpenses();
+    } else renderEntry();
   }
   for (const a of document.querySelectorAll('.nav a')) a.addEventListener('click', (e) => { const t = document.getElementById(a.getAttribute('href').slice(1)); if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth' }); } });
   let resizeT; window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (view === 'dash') renderDash(); }, 150); });
