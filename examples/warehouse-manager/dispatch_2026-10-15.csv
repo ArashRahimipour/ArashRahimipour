@@ -1,0 +1,7 @@
+wave,order,customer_due,sku,ordered_qty,allocated_qty,alloc_inventory_status,pick_location,replen_task,replen_status,picked_qty,short_reason,wms_status,load_scan,seal,carrier_departure
+W1,SO9001,16:00,SKU-A,96,96,AVAILABLE,P-A-01,RP-301,COMPLETED,96,,SHIPPED,TRL-12,S-77001,15:40
+W1,SO9002,16:00,SKU-B,48,48,QC_HOLD,P-B-04,,,48,,PACKED,,,
+W1,SO9003,16:00,SKU-A,120,120,AVAILABLE,P-A-01,RP-302,FAILED,72,,PICKED,,,
+W1,SO9004,16:00,SKU-G,30,0,,,,,0,,RELEASED,,,
+W2,SO9005,16:00,SKU-C,40,40,AVAILABLE,P-C-02,RP-303,OPEN,40,,PICKED,,,
+W2,SO9006,16:00,SKU-H,60,60,AVAILABLE,P-H-01,RP-304,COMPLETED,60,,SHIPPED,,,
